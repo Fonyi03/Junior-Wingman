@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ t('settings') }}</h2>
+<article>
+  <h4>{{ t('gmail') }}</h4>
+  {% if not gmail_configured %}
+    <p class="muted">{{ t('not_configured') }}</p>
+  {% elif gmail_email %}
+    <p>✅ {{ t('connected') }}: <strong>{{ gmail_email }}</strong></p>
+    <form method="post" action="/gmail/disconnect"><button class="secondary outline small-btn">{{ t('disconnect') }}</button></form>
+  {% else %}
+    <a href="/gmail/connect" role="button">{{ t('connect') }}</a>
+  {% endif %}
+</article>
+<article>
+  <h4>{{ t('ai') }}</h4>
+  <p>{{ '✅' if llm[0] else '⚠️' }} {{ llm[1] }}</p>
+  <p class="small muted">LLM_PROVIDER=claude|ollama (.env)</p>
+</article>
+<article>
+  <h4>{{ t('sources') }}</h4>
+  <ul class="plain">{% for name, on in sources %}<li>{{ '✅' if on else '⏸️' }} {{ name }} – {{ t('enabled') if on else t('disabled') }}</li>{% endfor %}</ul>
+  <p class="small muted">Search every {{ cfg.search_interval_hours }} h · email sync every {{ cfg.email_sync_minutes }} min · max {{ cfg.max_llm_scores_per_run }} LLM scores / run</p>
+</article>
+{% endblock %}

@@ -1,0 +1,32 @@
+# Cloud VM (e.g. Oracle Cloud Always Free): app + Caddy with automatic HTTPS.
+#   cp .env.example .env   # set BASE_URL=https://<DOMAIN>, APP_PASSWORD, SECRET_KEY
+#   DOMAIN=jobs.example.com docker compose -f deploy/docker-compose.cloud.yml up -d
+services:
+  app:
+    build: ..
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - ../data:/data
+      - ../certs:/certs:ro
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:

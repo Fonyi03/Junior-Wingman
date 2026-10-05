@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ t('jobs') }}</h2>
+<p class="row small">
+  {% for k in ['suggested', 'low', 'dismissed', 'all'] %}
+    <a href="/jobs?show={{ k }}" {% if show == k %}aria-current="page" class="active"{% endif %}>{{ k }}</a>
+  {% endfor %}
+</p>
+{% if not jobs %}<p class="muted">{{ t('no_jobs') }}</p>{% endif %}
+{% for j in jobs %}
+<article class="job">
+  <header class="row spread">
+    <div>
+      <strong>{{ j.title }}</strong> · {{ j.company }}<br>
+      <span class="small muted">{{ j.location }}{% if j.is_remote %} · remote{% endif %} · {{ j.source }}{% if j.salary_text %} · {{ j.salary_text }}{% endif %} · {{ j.language|upper }}</span>
+    </div>
+    {% if j.score is not none %}<span class="score {% if j.score >= 75 %}hi{% elif j.score >= 55 %}mid{% else %}lo{% endif %}">{{ j.score }}</span>{% endif %}
+  </header>
+  {% if j.score_reason %}<p class="small">{{ j.score_reason }}</p>{% endif %}
+  <details><summary class="small">{{ t('open_posting') }}</summary><pre class="desc">{{ j.description[:5000] }}</pre></details>
+  <footer class="row">
+    {% if j.status in ['suggested', 'low', 'new'] %}
+      <form method="post" action="/jobs/{{ j.id }}/prepare"><button class="small-btn">{{ t('prepare') }}</button></form>
+      <form method="post" action="/jobs/{{ j.id }}/dismiss"><button class="small-btn secondary outline">{{ t('dismiss') }}</button></form>
+    {% else %}<span class="pill">{{ j.status }}</span>{% endif %}
+    {% if j.url %}<a href="{{ j.url }}" target="_blank" rel="noopener">{{ t('open_posting') }} ↗</a>{% endif %}
+  </footer>
+</article>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ t('profile') }}</h2>
+<div class="grid">
+  <article>
+    <form method="post" action="/profile/upload" enctype="multipart/form-data">
+      <input type="hidden" name="kind" value="cv">
+      <label>{{ t('cv') }} <input type="file" name="file" accept=".pdf,.docx,.txt" required></label>
+      {% if profile.cv_filename %}<p class="small">✅ {{ profile.cv_filename }} ({{ profile.cv_text|length }} chars)</p>{% endif %}
+      <button class="small-btn">Upload</button>
+    </form>
+  </article>
+  <article>
+    <form method="post" action="/profile/upload" enctype="multipart/form-data">
+      <input type="hidden" name="kind" value="profiles">
+      <label>{{ t('profiles_upload') }} <input type="file" name="file" accept=".pdf,.docx,.txt" required></label>
+      <p class="small muted">{{ t('profiles_hint') }}</p>
+      <button class="small-btn">Upload</button>
+    </form>
+  </article>
+</div>
+
+<form method="post" action="/profile">
+  <div class="grid">
+    <label>{{ t('full_name') }} <input name="full_name" value="{{ profile.full_name }}"></label>
+    <label>{{ t('email') }} <input name="email" type="email" value="{{ profile.email }}"></label>
+    <label>{{ t('phone') }} <input name="phone" value="{{ profile.phone }}"></label>
+    <label>{{ t('location') }} <input name="location" value="{{ profile.location }}"></label>
+  </div>
+  <label>{{ t('keywords') }} <input name="search_keywords" value="{{ profile.search_keywords }}"></label>
+  <fieldset class="row">
+    <label><input type="checkbox" name="want_remote" value="true" {% if profile.want_remote %}checked{% endif %}> {{ t('want_remote') }}</label>
+    <label><input type="checkbox" name="want_hungary" value="true" {% if profile.want_hungary %}checked{% endif %}> {{ t('want_hungary') }}</label>
+  </fieldset>
+  <div class="grid">
+    <label>{{ t('salary_huf') }} <input name="salary_huf" value="{{ profile.salary_huf }}" placeholder="pl. bruttó 900 000 Ft/hó"></label>
+    <label>{{ t('salary_eur') }} <input name="salary_eur" value="{{ profile.salary_eur }}" placeholder="e.g. €55,000/year"></label>
+    <label>{{ t('min_score') }} <input name="min_score" type="number" min="0" max="100" value="{{ profile.min_score }}"></label>
+  </div>
+  <label>{{ t('letter_notes') }} <textarea name="notes" rows="2">{{ profile.notes }}</textarea></label>
+  <details><summary class="small">{{ t('profiles_upload') }} – text</summary>
+    <textarea name="profiles_text" rows="10">{{ profile.profiles_text }}</textarea></details>
+  <button>{{ t('save') }}</button>
+</form>
+<form method="post" action="/profile/analyze"><button class="secondary outline" {% if not profile.cv_text %}disabled{% endif %}>{{ t('analyze') }}</button></form>
+{% endblock %}

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Hunter</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="container">
+  <nav>
+    <ul><li><a href="/" class="brand"><strong>Job Hunter</strong></a></li></ul>
+    <ul class="nav-links">
+      <li><a href="/jobs">{{ t('jobs') }}</a></li>
+      <li><a href="/drafts">{{ t('drafts') }}{% if drafts_count %} <span class="badge">{{ drafts_count }}</span>{% endif %}</a></li>
+      <li><a href="/applications">{{ t('tracker') }}</a></li>
+      <li><a href="/profile">{{ t('profile') }}</a></li>
+      <li><a href="/settings">{{ t('settings') }}</a></li>
+      <li><a href="/lang/{{ 'en' if lang == 'hu' else 'hu' }}" class="secondary">{{ 'EN' if lang == 'hu' else 'HU' }}</a></li>
+    </ul>
+  </nav>
+</header>
+<main class="container">
+  {% for kind, msg in flashes %}
+    <article class="flash flash-{{ kind }}">{{ t(msg) }}</article>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="container muted small">
+  Job Hunter · MIT · listings via Remotive, Arbeitnow, <a href="https://remoteok.com">Remote OK</a>, JSearch
+</footer>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ t('dashboard') }}</h2>
+<div class="stats">
+  <a href="/jobs" class="stat"><span>{{ suggested }}</span>{{ t('jobs') }}</a>
+  <a href="/drafts" class="stat"><span>{{ drafts_count }}</span>{{ t('drafts') }}</a>
+  {% for st in ['applied', 'received', 'interview', 'offer', 'rejected'] %}
+    <a href="/applications?status={{ st }}" class="stat st-{{ st }}"><span>{{ counts.get(st, 0) }}</span>{{ t('st_' ~ st) }}</a>
+  {% endfor %}
+</div>
+
+<div class="grid">
+  <article>
+    <p><strong>{{ t('last_search') }}:</strong> <span class="small">{{ last_search or t('never') }}</span></p>
+    <p><strong>{{ t('last_sync') }}:</strong> <span class="small">{{ last_sync or t('never') }}</span></p>
+    <p class="small">{{ t('ai') }}: {{ '✅' if llm[0] else '⚠️' }} {{ llm[1] }} · Gmail: {{ '✅' if gmail_ok else '⚠️' }}</p>
+    <div class="row">
+      <form method="post" action="/run/search"><button>{{ t('run_search') }}</button></form>
+      <form method="post" action="/run/sync"><button class="secondary" {% if not gmail_ok %}disabled{% endif %}>{{ t('run_sync') }}</button></form>
+    </div>
+  </article>
+  <article>
+    <h4>{{ t('tracker') }}</h4>
+    {% if recent %}
+      <ul class="plain">
+      {% for a in recent %}
+        <li><a href="/applications/{{ a.id }}">{{ a.company }} – {{ a.position }}</a> <span class="pill st-{{ a.status }}">{{ t('st_' ~ a.status) }}</span></li>
+      {% endfor %}
+      </ul>
+    {% else %}<p class="muted">{{ t('no_apps') }}</p>{% endif %}
+  </article>
+</div>
+{% endblock %}

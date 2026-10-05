@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ a.company }} – {{ a.position }}</h2>
+<form method="post" action="/applications/{{ a.id }}/update">
+  <input type="hidden" name="next" value="/applications/{{ a.id }}">
+  <div class="grid">
+    <label>{{ t('status') }}
+      <select name="status">{% for st in statuses %}<option value="{{ st }}" {% if st == a.status %}selected{% endif %}>{{ t('st_' ~ st) }}</option>{% endfor %}</select>
+    </label>
+    <label>{{ t('salary') }} <input name="salary_expectation" value="{{ a.salary_expectation }}"></label>
+  </div>
+  <div class="grid">
+    <label>{{ t('contact') }} <input name="contact_name" value="{{ a.contact_name }}"></label>
+    <label>{{ t('email') }} <input name="contact_email" value="{{ a.contact_email }}"></label>
+    <label>{{ t('phone') }} <input name="contact_phone" value="{{ a.contact_phone }}"></label>
+  </div>
+  <label>{{ t('notes') }} <textarea name="notes" rows="3">{{ a.notes }}</textarea></label>
+  <button>{{ t('save') }}</button>
+</form>
+<p class="small muted">{{ t('applied_at') }}: {{ a.applied_at.strftime('%Y-%m-%d %H:%M') if a.applied_at else '–' }} · {{ a.method }}
+  {% if a.job_url %} · <a href="{{ a.job_url }}" target="_blank" rel="noopener">{{ t('open_posting') }} ↗</a>{% endif %}</p>
+
+<h4>{{ t('emails') }}</h4>
+{% if events %}
+<table class="striped small">
+  {% for e in events %}
+  <tr><td>{{ e.received_at.strftime('%Y-%m-%d') if e.received_at else '' }}</td><td>{{ e.from_addr }}</td>
+      <td><strong>{{ e.subject }}</strong><br>{{ e.snippet }}</td>
+      <td>{% if e.detected_status %}<span class="pill st-{{ e.detected_status }}">{{ e.detected_status }}</span>{% endif %}</td></tr>
+  {% endfor %}
+</table>
+{% else %}<p class="muted">–</p>{% endif %}
+
+{% if a.cover_letter %}
+<details><summary>{{ t('cover_letter') }}</summary><p><strong>{{ a.cover_letter_subject }}</strong></p><pre class="desc">{{ a.cover_letter }}</pre></details>
+{% endif %}
+{% endblock %}

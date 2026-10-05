@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="narrow">
+  <form method="post" action="/login">
+    <label>{{ t('password') }} <input type="password" name="password" autofocus required></label>
+    <button type="submit">{{ t('login') }}</button>
+  </form>
+</article>
+{% endblock %}

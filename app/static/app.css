@@ -1,0 +1,36 @@
+:root { --pico-font-size: 95%; }
+.brand { text-decoration: none; }
+.nav-links { flex-wrap: wrap; }
+.badge { background: var(--pico-primary); color: #fff; border-radius: 999px; padding: 0 .45em; font-size: .75em; }
+.muted { color: var(--pico-muted-color); }
+.small { font-size: .85em; }
+.row { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.row form { margin: 0; }
+.spread { justify-content: space-between; }
+.plain { list-style: none; padding: 0; }
+.plain li { list-style: none; }
+.narrow { max-width: 380px; margin: 3rem auto; }
+.small-btn { padding: .35rem .8rem; font-size: .85em; }
+.active { font-weight: 700; text-decoration: underline; }
+form.inline { margin: 0; }
+form.inline select { margin: 0; padding: .2rem 1.8rem .2rem .5rem; font-size: .85em; }
+.desc { white-space: pre-wrap; font-size: .8em; max-height: 400px; overflow: auto; }
+.flash { padding: .75rem 1rem; }
+.flash-error { border-left: 4px solid #d93526; }
+.flash-ok { border-left: 4px solid #2a9d4b; }
+.stats { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.5rem; }
+.stat { flex: 1 1 110px; padding: .8rem; border-radius: var(--pico-border-radius); background: var(--pico-card-background-color);
+        box-shadow: var(--pico-card-box-shadow); text-decoration: none; font-size: .85em; }
+.stat span { display: block; font-size: 1.8em; font-weight: 700; }
+.score { font-weight: 700; font-size: 1.2em; padding: .2rem .6rem; border-radius: 8px; }
+.score.hi { background: #d1f2dc; color: #135c2b; }
+.score.mid { background: #fff1c2; color: #6b5200; }
+.score.lo { background: #fde0dc; color: #7a1d14; }
+.pill { font-size: .75em; padding: .1rem .5rem; border-radius: 999px; background: var(--pico-secondary-background); color: var(--pico-secondary-inverse); }
+.pill.st-interview, .stat.st-interview span { color: #1d6fd1; }
+.pill.st-offer, .stat.st-offer span { color: #2a9d4b; }
+.pill.st-rejected, .stat.st-rejected span { color: #d93526; }
+.pill.st-interview, .pill.st-offer, .pill.st-rejected { background: transparent; border: 1px solid currentColor; }
+.grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .5rem; }
+.job header { margin-bottom: .5rem; }
+.job footer { margin-top: .5rem; }

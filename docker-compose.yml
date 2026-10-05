@@ -1,0 +1,18 @@
+# Local use: docker compose up -d   ->  http://localhost:8000
+# restart: unless-stopped + Docker Desktop "Start when you sign in" = no manual start/stop.
+services:
+  app:
+    build: .
+    image: job-hunter-app:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - ./data:/data
+      - ./certs:/certs:ro  # optional extra CA certs (corporate proxy)
+    ports:
+      # bound to localhost only: the app is not reachable from your network
+      - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # lets the container reach a local Ollama

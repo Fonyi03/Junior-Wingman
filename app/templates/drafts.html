@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ t('drafts') }}</h2>
+{% if not apps %}<p class="muted">{{ t('no_drafts') }}</p>{% endif %}
+{% for a in apps %}
+{% set j = jobs.get(a.job_id) %}
+<article id="app-{{ a.id }}">
+  <header class="row spread">
+    <div><strong>{{ a.position }}</strong> · {{ a.company }}
+      {% if j %}<br><span class="small muted">{{ j.location }} · {{ t('score') }}: {{ j.score }}</span>{% endif %}</div>
+    {% if a.job_url %}<a href="{{ a.job_url }}" target="_blank" rel="noopener">{{ t('open_posting') }} ↗</a>{% endif %}
+  </header>
+  <form method="post" action="/applications/{{ a.id }}/update">
+    <input type="hidden" name="next" value="/drafts#app-{{ a.id }}">
+    <div class="grid">
+      <label>{{ t('email') }} <input name="contact_email" value="{{ a.contact_email }}"></label>
+      <label>{{ t('phone') }} <input name="contact_phone" value="{{ a.contact_phone }}"></label>
+      <label>{{ t('salary') }} <input name="salary_expectation" value="{{ a.salary_expectation }}"></label>
+      <label>{{ t('language') }}
+        <select name="language"><option value="hu" {% if a.language == 'hu' %}selected{% endif %}>HU</option><option value="en" {% if a.language == 'en' %}selected{% endif %}>EN</option></select>
+      </label>
+    </div>
+    <label>{{ t('subject') }} <input name="cover_letter_subject" value="{{ a.cover_letter_subject }}"></label>
+    <label>{{ t('cover_letter') }} <textarea name="cover_letter" rows="12">{{ a.cover_letter }}</textarea></label>
+    <button class="secondary outline small-btn">{{ t('save') }}</button>
+  </form>
+  {% if not a.contact_email %}<p class="small muted">{{ t('manual_hint') }}</p>{% endif %}
+  <footer class="row">
+    {% if a.contact_email and gmail_ok %}
+      <form method="post" action="/applications/{{ a.id }}/send"
+            onsubmit="return confirm('{{ a.contact_email }} ← {{ a.cover_letter_subject|e }}?')">
+        <button>{{ t('approve_send') }}</button></form>
+    {% endif %}
+    <form method="post" action="/applications/{{ a.id }}/manual"><button class="secondary">{{ t('approve_manual') }}</button></form>
+    <form method="post" action="/applications/{{ a.id }}/regenerate"><button class="secondary outline">{{ t('regenerate') }}</button></form>
+    <form method="post" action="/applications/{{ a.id }}/delete"><button class="contrast outline">{{ t('discard') }}</button></form>
+  </footer>
+</article>
+{% endfor %}
+{% endblock %}
