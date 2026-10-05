@@ -4,9 +4,9 @@ import logging
 import secrets
 import threading
 from contextlib import asynccontextmanager
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, func, select
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import get_settings
@@ -49,6 +50,8 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Job Hunter", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
+# Cache-busting token for static assets: changes whenever the stylesheet changes
+templates.env.globals["asset_v"] = int((BASE / "static" / "app.css").stat().st_mtime)
 OPEN_PATHS = ("/login", "/static", "/healthz")
 
 
@@ -68,6 +71,32 @@ def flash(request: Request, msg: str, kind: str = "ok") -> None:
     request.session.setdefault("flash", []).append([kind, msg])
 
 
+LOCAL_TZ = ZoneInfo(settings.timezone)
+
+
+def _local(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(LOCAL_TZ)
+
+
+templates.env.filters["localdate"] = lambda v: _local(v).strftime("%Y.%m.%d.") if v else ""
+templates.env.filters["localdt"] = lambda v: _local(v).strftime("%Y.%m.%d. %H:%M") if v else ""
+
+
+def kv_time(s: Session, key: str) -> str:
+    """Background jobs store 'ISO timestamp · stats'; show only the local time."""
+    raw = kv_get(s, key).split(" · ")[0]
+    try:
+        return _local(datetime.fromisoformat(raw)).strftime("%Y.%m.%d. %H:%M")
+    except ValueError:
+        return ""
+
+
+def count_where(s: Session, model, *conds) -> int:
+    return s.exec(select(func.count()).select_from(model).where(*conds)).one()
+
+
 def render(request: Request, s: Session, name: str, **ctx) -> HTMLResponse:
     profile = get_profile(s)
     ctx.update(
@@ -75,15 +104,27 @@ def render(request: Request, s: Session, name: str, **ctx) -> HTMLResponse:
         t=translator(profile.ui_lang),
         lang=profile.ui_lang,
         profile=profile,
+        cfg=settings,
         flashes=request.session.pop("flash", []),
         statuses=APP_STATUSES,
-        drafts_count=s.exec(select(func.count()).select_from(Application).where(Application.status == "draft")).one(),
+        drafts_count=count_where(s, Application, Application.status == "draft"),
+        suggested_count=count_where(s, Job, Job.status == "suggested"),
     )
     return templates.TemplateResponse(request, name, ctx)
 
 
 def back(path: str) -> RedirectResponse:
     return RedirectResponse(path, status_code=303)
+
+
+def _referer_path(request: Request, default: str) -> str:
+    """Redirect back to the page the form was on (same-origin path only)."""
+    from urllib.parse import urlsplit
+
+    ref = urlsplit(request.headers.get("referer", ""))
+    if ref.netloc and ref.netloc != request.url.netloc:
+        return default
+    return (ref.path + (f"?{ref.query}" if ref.query else "")) or default
 
 
 def _in_background(fn) -> None:
@@ -102,6 +143,7 @@ def login(request: Request, password: str = Form(...)):
     if settings.app_password and secrets.compare_digest(password, settings.app_password):
         request.session["auth"] = True
         return back("/")
+    flash(request, "login_failed", "error")
     return back("/login")
 
 
@@ -116,7 +158,7 @@ def set_lang(code: str, request: Request, s: Session = Depends(get_session)):
     p.ui_lang = code if code in ("hu", "en") else "hu"
     s.add(p)
     s.commit()
-    return back(request.headers.get("referer", "/"))
+    return back(_referer_path(request, "/"))
 
 
 # ---------------------------------------------------------------- dashboard
@@ -124,11 +166,10 @@ def set_lang(code: str, request: Request, s: Session = Depends(get_session)):
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, s: Session = Depends(get_session)):
     counts = dict(s.exec(select(Application.status, func.count()).group_by(Application.status)).all())
-    suggested = s.exec(select(func.count()).select_from(Job).where(Job.status == "suggested")).one()
     recent = s.exec(select(Application).where(Application.status != "draft")
-                    .order_by(Application.updated_at.desc()).limit(8)).all()
-    return render(request, s, "dashboard.html", counts=counts, suggested=suggested, recent=recent,
-                  last_search=kv_get(s, "last_search"), last_sync=kv_get(s, "last_email_sync"),
+                    .order_by(Application.updated_at.desc()).limit(6)).all()
+    return render(request, s, "dashboard.html", counts=counts, recent=recent,
+                  last_search_at=kv_time(s, "last_search"), last_sync_at=kv_time(s, "last_email_sync"),
                   llm=llm_status(), gmail_ok=gmail.connected(), li=linkedin.status(s))
 
 
@@ -136,14 +177,14 @@ def dashboard(request: Request, s: Session = Depends(get_session)):
 def run_search(request: Request):
     _in_background(pipeline.run_search)
     flash(request, "started_bg")
-    return back("/")
+    return back(_referer_path(request, "/"))
 
 
 @app.post("/run/sync")
 def run_sync(request: Request):
     _in_background(pipeline.run_email_sync)
     flash(request, "started_bg")
-    return back("/applications")
+    return back(_referer_path(request, "/applications"))
 
 
 # ---------------------------------------------------------------- jobs
@@ -154,7 +195,9 @@ def jobs(request: Request, show: str = "suggested", s: Session = Depends(get_ses
     if show != "all":
         q = q.where(Job.status == show)
     rows = s.exec(q.order_by(Job.score.desc(), Job.fetched_at.desc()).limit(200)).all()
-    return render(request, s, "jobs.html", jobs=rows, show=show)
+    tab_counts = dict(s.exec(select(Job.status, func.count()).group_by(Job.status)).all())
+    tab_counts["all"] = sum(tab_counts.values())
+    return render(request, s, "jobs.html", jobs=rows, show=show, tab_counts=tab_counts)
 
 
 @app.post("/jobs/{job_id}/prepare")
@@ -186,84 +229,87 @@ def drafts(request: Request, s: Session = Depends(get_session)):
     return render(request, s, "drafts.html", apps=rows, jobs=jobs_by_id, gmail_ok=gmail.connected())
 
 
-@app.post("/applications/{app_id}/update")
-def update_application(
-    app_id: int,
-    request: Request,
-    next: str = Form("/applications"),
-    status: Optional[str] = Form(None),
-    cover_letter_subject: Optional[str] = Form(None),
-    cover_letter: Optional[str] = Form(None),
-    salary_expectation: Optional[str] = Form(None),
-    contact_name: Optional[str] = Form(None),
-    contact_email: Optional[str] = Form(None),
-    contact_phone: Optional[str] = Form(None),
-    language: Optional[str] = Form(None),
-    notes: Optional[str] = Form(None),
-    s: Session = Depends(get_session),
-):
-    a = s.get(Application, app_id) or _404()
-    fields = dict(status=status, cover_letter_subject=cover_letter_subject, cover_letter=cover_letter,
-                  salary_expectation=salary_expectation, contact_name=contact_name, contact_email=contact_email,
-                  contact_phone=contact_phone, language=language, notes=notes)
-    for k, v in fields.items():
-        if v is not None:
-            setattr(a, k, v.strip() if k != "cover_letter" else v)
-    if status == "applied" and not a.applied_at:
+EDITABLE_FIELDS = ("status", "cover_letter_subject", "cover_letter", "salary_expectation", "contact_name",
+                   "contact_email", "contact_phone", "language", "notes")
+
+
+async def _save_form(request: Request, s: Session, a: Application) -> str:
+    """Apply the editable fields present in the posted form; returns the 'next' redirect target."""
+    form = await request.form()
+    for k in EDITABLE_FIELDS:
+        v = form.get(k)
+        if isinstance(v, str):
+            setattr(a, k, v if k == "cover_letter" else v.strip())
+    if form.get("status") == "applied" and not a.applied_at:
         a.applied_at = utcnow()
     a.updated_at = utcnow()
     s.add(a)
     s.commit()
-    return back(next if next.startswith("/") else "/applications")
+    nxt = str(form.get("next") or "/applications")
+    return nxt if nxt.startswith("/") else "/applications"
+
+
+@app.post("/applications/{app_id}/update")
+async def update_application(app_id: int, request: Request, s: Session = Depends(get_session)):
+    a = s.get(Application, app_id) or _404()
+    nxt = await _save_form(request, s, a)
+    flash(request, "saved")
+    return back(nxt)
 
 
 @app.post("/applications/{app_id}/regenerate")
-def regenerate(app_id: int, request: Request, s: Session = Depends(get_session)):
+async def regenerate(app_id: int, request: Request, s: Session = Depends(get_session)):
     a = s.get(Application, app_id) or _404()
+    await _save_form(request, s, a)  # keep edits such as a changed letter language
     job = s.get(Job, a.job_id) if a.job_id else None
     if not job:
-        flash(request, "No job posting linked", "error")
+        flash(request, "no_job_linked", "error")
         return back("/drafts")
     try:
-        letter = ai.write_cover_letter(get_profile(s), job, a.language, a.salary_expectation)
+        letter = await run_in_threadpool(ai.write_cover_letter, get_profile(s), job, a.language, a.salary_expectation)
     except LLMError as e:
         flash(request, str(e), "error")
-        return back("/drafts")
+        return back(f"/drafts#app-{a.id}")
     a.cover_letter_subject, a.cover_letter = letter.subject, letter.body
     s.add(a)
     s.commit()
+    flash(request, "letter_rewritten")
     return back(f"/drafts#app-{a.id}")
 
 
 @app.post("/applications/{app_id}/send")
-def send_application(app_id: int, request: Request, s: Session = Depends(get_session)):
-    """Explicit user approval: send the application email through Gmail."""
+async def send_application(app_id: int, request: Request, s: Session = Depends(get_session)):
+    """Explicit user approval: save the reviewed draft, then send it through Gmail."""
     a = s.get(Application, app_id) or _404()
+    await _save_form(request, s, a)
     if not a.contact_email:
-        flash(request, "Missing recipient email", "error")
-        return back("/drafts")
+        flash(request, "missing_recipient", "error")
+        return back(f"/drafts#app-{a.id}")
     p = get_profile(s)
     cv = settings.upload_dir / p.cv_filename if p.cv_filename else None
     try:
-        thread_id = gmail.send(a.contact_email, a.cover_letter_subject, a.cover_letter, cv)
+        thread_id = await run_in_threadpool(gmail.send, a.contact_email, a.cover_letter_subject, a.cover_letter, cv)
     except Exception as e:
         log.exception("send failed")
         flash(request, f"Gmail: {e}", "error")
-        return back("/drafts")
+        return back(f"/drafts#app-{a.id}")
     pipeline.mark_applied(a, "email", thread_id)
     _close_job(s, a)
     s.add(a)
     s.commit()
+    flash(request, "sent_ok")
     return back("/applications")
 
 
 @app.post("/applications/{app_id}/manual")
-def mark_manual(app_id: int, s: Session = Depends(get_session)):
+async def mark_manual(app_id: int, request: Request, s: Session = Depends(get_session)):
     a = s.get(Application, app_id) or _404()
+    await _save_form(request, s, a)
     pipeline.mark_applied(a, "manual")
     _close_job(s, a)
     s.add(a)
     s.commit()
+    flash(request, "marked_applied")
     return back("/applications")
 
 
@@ -295,8 +341,10 @@ def tracker(request: Request, status: str = "", s: Session = Depends(get_session
     if status:
         q = q.where(Application.status == status)
     rows = s.exec(q.order_by(Application.updated_at.desc())).all()
-    return render(request, s, "applications.html", apps=rows, filter=status,
-                  last_sync=kv_get(s, "last_email_sync"), gmail_ok=gmail.connected())
+    status_counts = dict(s.exec(select(Application.status, func.count())
+                                .where(Application.status != "draft").group_by(Application.status)).all())
+    return render(request, s, "applications.html", apps=rows, filter=status, status_counts=status_counts,
+                  last_sync_at=kv_time(s, "last_email_sync"), gmail_ok=gmail.connected())
 
 
 @app.get("/applications/{app_id}", response_class=HTMLResponse)
@@ -310,6 +358,7 @@ def application_detail(app_id: int, request: Request, s: Session = Depends(get_s
 
 @app.post("/applications/new")
 def add_manual(
+    request: Request,
     company: str = Form(...), position: str = Form(...), job_url: str = Form(""),
     salary_expectation: str = Form(""), contact_phone: str = Form(""), contact_email: str = Form(""),
     s: Session = Depends(get_session),
@@ -320,6 +369,7 @@ def add_manual(
     pipeline.mark_applied(a, "manual")
     s.add(a)
     s.commit()
+    flash(request, "added")
     return back("/applications")
 
 
@@ -332,6 +382,7 @@ def profile_page(request: Request, s: Session = Depends(get_session)):
 
 @app.post("/profile")
 def save_profile(
+    request: Request,
     full_name: str = Form(""), email: str = Form(""), phone: str = Form(""), location: str = Form(""),
     search_keywords: str = Form(""), salary_huf: str = Form(""), salary_eur: str = Form(""),
     min_score: int = Form(65), notes: str = Form(""), profiles_text: str = Form(""),
@@ -347,6 +398,7 @@ def save_profile(
     p.want_remote, p.want_hungary = want_remote, want_hungary
     s.add(p)
     s.commit()
+    flash(request, "saved")
     return back("/profile")
 
 
@@ -399,7 +451,7 @@ def settings_page(request: Request, s: Session = Depends(get_session)):
             gmail_email = f"error: {e}"
     return render(request, s, "settings.html", llm=llm_status(), gmail_configured=gmail.configured(),
                   gmail_email=gmail_email, sources=[(x.name, x.enabled()) for x in ALL_SOURCES],
-                  cfg=settings, li=linkedin.status(s))
+                  li=linkedin.status(s), li_last_sync_at=kv_time(s, linkedin.SYNC_KEY))
 
 
 # ---------------------------------------------------------------- linkedin

@@ -1,58 +1,96 @@
 {% extends "base.html" %}
+{% block title %}{{ t('settings') }} | {% endblock %}
 {% block content %}
-<h2>{{ t('settings') }}</h2>
-<article>
-  <h4>{{ t('gmail') }}</h4>
+<header class="page-head">
+  <div>
+    <h1>{{ t('settings') }}</h1>
+    <p class="lede">{{ t('settings_lede') }}</p>
+  </div>
+</header>
+
+<section class="panel" id="gmail" aria-labelledby="gm-h">
+  <div class="row spread">
+    <h2 id="gm-h">Gmail</h2>
+    {% if gmail_email and not gmail_email.startswith('error') %}<span class="conn-state ok">{{ t('connected') }}</span>
+    {% elif gmail_configured %}<span class="conn-state warn">{{ t('not_connected') }}</span>
+    {% else %}<span class="conn-state off">{{ t('not_configured_short') }}</span>{% endif %}
+  </div>
+  <p class="small muted" style="margin-top:.4rem">{{ t('gmail_why') }}</p>
+  <div style="margin-top:1rem">
   {% if not gmail_configured %}
-    <p class="muted">{{ t('not_configured') }}</p>
-  {% elif gmail_email %}
-    <p>✅ {{ t('connected') }}: <strong>{{ gmail_email }}</strong></p>
-    <form method="post" action="/gmail/disconnect"><button class="secondary outline small-btn">{{ t('disconnect') }}</button></form>
+    <p class="small">{{ t('not_configured') }}</p>
+  {% elif gmail_email and not gmail_email.startswith('error') %}
+    <div class="row"><span>{{ gmail_email }}</span>
+      <form method="post" action="/gmail/disconnect" data-confirm="{{ t('confirm_gmail_off') }}" data-confirm-ok="{{ t('disconnect') }}" data-confirm-danger="1">
+        <button class="btn btn-sm btn-ghost btn-danger">{{ t('disconnect') }}</button></form></div>
   {% else %}
-    <a href="/gmail/connect" role="button">{{ t('connect') }}</a>
+    {% if gmail_email %}<p class="small" style="color:var(--red)">{{ gmail_email }}</p>{% endif %}
+    <a class="btn btn-primary" href="/gmail/connect"><svg class="icon"><use href="#i-mail"/></svg>{{ t('gmail_connect') }}</a>
   {% endif %}
-</article>
-<article id="linkedin">
-  <h4>{{ t('li_title') }}</h4>
+  </div>
+</section>
+
+<section class="panel" id="linkedin" aria-labelledby="li-h">
+  <div class="row spread">
+    <h2 id="li-h">{{ t('li_title') }}</h2>
+    {% if li.connected and li.error == 'token_expired' %}<span class="conn-state warn">{{ t('li_expired_short') }}</span>
+    {% elif li.connected and li.error %}<span class="conn-state warn">{{ t('error') }}</span>
+    {% elif li.connected %}<span class="conn-state ok">{{ t('connected') }}</span>
+    {% else %}<span class="conn-state off">{{ t('not_connected') }}</span>{% endif %}
+  </div>
+  <p class="small muted" style="margin-top:.4rem">{{ t('li_why') }}</p>
+
   {% if li.connected %}
     {% if li.error == 'token_expired' %}
-      <p class="flash flash-error">⚠️ {{ t('li_expired') }}</p>
+      <div class="notice" style="margin-top:1rem"><svg class="icon"><use href="#i-alert"/></svg><span>{{ t('li_expired') }}</span></div>
     {% elif li.error %}
-      <p class="flash flash-error">⚠️ {{ li.error }}</p>
-    {% else %}
-      <p>✅ {{ t('connected') }} · {{ t('li_token_age') }}: {{ li.token_age_days }} {{ t('days') }}</p>
+      <div class="notice" style="margin-top:1rem"><svg class="icon"><use href="#i-alert"/></svg><span>{{ li.error }}</span></div>
     {% endif %}
-    <p class="small muted">{{ t('li_last_sync') }}: {{ li.last_sync or t('never') }}</p>
-    <div class="row">
-      <form method="post" action="/linkedin/sync"><button class="small-btn">{{ t('li_sync_now') }}</button></form>
-      <form method="post" action="/linkedin/disconnect"><button class="small-btn secondary outline">{{ t('disconnect') }}</button></form>
+    <p class="small" style="margin-top:1rem">{{ t('li_last_sync') }}: {{ li_last_sync_at or t('never') }}
+      {% if li.token_age_days is not none %}<span class="muted">({{ t('li_token_age') | replace('{n}', li.token_age_days) }})</span>{% endif %}</p>
+    <div class="row" style="margin-top:.6rem">
+      <form method="post" action="/linkedin/sync"><button class="btn btn-sm"><svg class="icon"><use href="#i-refresh"/></svg>{{ t('li_sync_now') }}</button></form>
+      <form method="post" action="/linkedin/disconnect" data-confirm="{{ t('confirm_li_off') }}" data-confirm-ok="{{ t('disconnect') }}" data-confirm-danger="1">
+        <button class="btn btn-sm btn-ghost btn-danger">{{ t('disconnect') }}</button></form>
     </div>
   {% endif %}
-  <form method="post" action="/linkedin/token">
-    <label>{{ t('li_token') }}
-      <input type="password" name="token" autocomplete="off" required placeholder="AQV…"></label>
-    <button class="small-btn">{{ t('save') }} &amp; {{ t('li_sync_now') }}</button>
+
+  <form method="post" action="/linkedin/token" class="stack" style="margin-top:1rem;max-width:560px">
+    <div class="field">
+      <label for="li-token">{{ t('li_token_new') if li.connected else t('li_token') }}</label>
+      <input id="li-token" type="password" name="token" autocomplete="off" required>
+    </div>
+    <div><button class="btn btn-primary btn-sm">{{ t('li_save_sync') }}</button></div>
   </form>
-  <details>
-    <summary class="small">{{ t('li_howto') }}</summary>
-    <ol class="small">
-      <li>{{ t('li_step1') }} <a href="https://www.linkedin.com/developers/apps/new" target="_blank" rel="noopener">linkedin.com/developers</a>
-        – {{ t('li_step1b') }} <a href="https://www.linkedin.com/company/member-data-portability-member-default-company" target="_blank" rel="noopener">Member Data Portability (Member) Default Company</a></li>
+  <details class="more" {% if not li.connected %}open{% endif %} style="margin-top:1rem">
+    <summary>{{ t('li_howto') }}</summary>
+    <ol class="steps">
+      <li>{{ t('li_step1') }} <a href="https://www.linkedin.com/developers/apps/new" target="_blank" rel="noopener">linkedin.com/developers</a>.
+        {{ t('li_step1b') }} <a href="https://www.linkedin.com/company/member-data-portability-member-default-company" target="_blank" rel="noopener">Member Data Portability (Member) Default Company</a>.</li>
       <li>{{ t('li_step2') }}</li>
-      <li>{{ t('li_step3') }} <a href="https://www.linkedin.com/developers/tools/oauth" target="_blank" rel="noopener">OAuth Token Generator</a> → <code>r_dma_portability_self_serve</code></li>
+      <li>{{ t('li_step3') }} <a href="https://www.linkedin.com/developers/tools/oauth" target="_blank" rel="noopener">OAuth Token Generator</a>, scope: <code>r_dma_portability_self_serve</code>.</li>
       <li>{{ t('li_step4') }}</li>
     </ol>
-    <p class="small muted">{{ t('li_note') }}</p>
+    <p class="small muted" style="margin-top:.6rem">{{ t('li_note') }}</p>
   </details>
-</article>
-<article>
-  <h4>{{ t('ai') }}</h4>
-  <p>{{ '✅' if llm[0] else '⚠️' }} {{ llm[1] }}</p>
-  <p class="small muted">LLM_PROVIDER=claude|ollama (.env)</p>
-</article>
-<article>
-  <h4>{{ t('sources') }}</h4>
-  <ul class="plain">{% for name, on in sources %}<li>{{ '✅' if on else '⏸️' }} {{ name }} – {{ t('enabled') if on else t('disabled') }}</li>{% endfor %}</ul>
-  <p class="small muted">Search every {{ cfg.search_interval_hours }} h · email sync every {{ cfg.email_sync_minutes }} min · max {{ cfg.max_llm_scores_per_run }} LLM scores / run</p>
-</article>
+</section>
+
+<section class="panel" aria-labelledby="ai-h">
+  <div class="row spread">
+    <h2 id="ai-h">{{ t('ai') }}</h2>
+    <span class="conn-state {{ 'ok' if llm[0] else 'warn' }}">{{ t('ready') if llm[0] else t('missing_key') }}</span>
+  </div>
+  <p class="small" style="margin-top:.4rem">{{ llm[1] }}</p>
+  <p class="small muted" style="margin-top:.4rem">{{ t('ai_hint') }}</p>
+</section>
+
+<section class="panel" aria-labelledby="src-h">
+  <h2 id="src-h" style="margin-bottom:.75rem">{{ t('sources') }}</h2>
+  <ul class="source-list">
+    {% for name, on in sources %}
+      <li><span>{{ name }}</span><span class="conn-state {{ 'ok' if on else 'off' }}">{{ t('enabled') if on else t('disabled') }}</span></li>
+    {% endfor %}
+  </ul>
+  <p class="small muted" style="margin-top:.75rem">{{ t('sources_hint') | replace('{h}', cfg.search_interval_hours) | replace('{m}', cfg.email_sync_minutes) | replace('{n}', cfg.max_llm_scores_per_run) }}</p>
+</section>
 {% endblock %}

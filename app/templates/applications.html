@@ -1,57 +1,106 @@
 {% extends "base.html" %}
+{% from "_macros.html" import rail %}
+{% block title %}{{ t('tracker') }} | {% endblock %}
 {% block content %}
-<div class="row spread">
-  <h2>{{ t('tracker') }}</h2>
-  <form method="post" action="/run/sync"><button class="secondary small-btn" {% if not gmail_ok %}disabled{% endif %}>{{ t('run_sync') }}</button></form>
-</div>
-<p class="small muted">{{ t('last_sync') }}: {{ last_sync or t('never') }}</p>
-<p class="row small">
-  <a href="/applications" {% if not filter %}class="active"{% endif %}>{{ t('all') }}</a>
-  {% for st in statuses if st != 'draft' %}<a href="/applications?status={{ st }}" {% if filter == st %}class="active"{% endif %}>{{ t('st_' ~ st) }}</a>{% endfor %}
-</p>
-{% if not apps %}<p class="muted">{{ t('no_apps') }}</p>{% else %}
-<div class="overflow-auto">
-<table class="striped">
-  <thead><tr>
-    <th>{{ t('company') }}</th><th>{{ t('position') }}</th><th>{{ t('status') }}</th><th>{{ t('applied_at') }}</th>
-    <th>{{ t('salary') }}</th><th>{{ t('contact') }}</th><th>{{ t('phone') }}</th><th>{{ t('last_email') }}</th><th></th>
-  </tr></thead>
-  <tbody>
-  {% for a in apps %}
-  <tr>
-    <td><a href="/applications/{{ a.id }}">{{ a.company }}</a></td>
-    <td>{% if a.job_url %}<a href="{{ a.job_url }}" target="_blank" rel="noopener">{{ a.position }}</a>{% else %}{{ a.position }}{% endif %}</td>
-    <td>
-      <form method="post" action="/applications/{{ a.id }}/update" class="inline">
-        <input type="hidden" name="next" value="/applications{% if filter %}?status={{ filter }}{% endif %}">
-        <select name="status" onchange="this.form.submit()" class="st-{{ a.status }}">
-          {% for st in statuses %}<option value="{{ st }}" {% if st == a.status %}selected{% endif %}>{{ t('st_' ~ st) }}</option>{% endfor %}
-        </select>
-      </form>
-    </td>
-    <td class="small">{{ a.applied_at.strftime('%Y-%m-%d') if a.applied_at else '' }}</td>
-    <td class="small">{{ a.salary_expectation }}</td>
-    <td class="small">{{ a.contact_name }}{% if a.contact_email %}<br><a href="mailto:{{ a.contact_email }}">{{ a.contact_email }}</a>{% endif %}</td>
-    <td class="small">{% if a.contact_phone %}<a href="tel:{{ a.contact_phone|replace(' ', '') }}">{{ a.contact_phone }}</a>{% endif %}</td>
-    <td class="small">{{ a.last_email_at.strftime('%Y-%m-%d') if a.last_email_at else '' }}</td>
-    <td><a href="/applications/{{ a.id }}">✎</a></td>
-  </tr>
+<header class="page-head">
+  <div>
+    <h1>{{ t('tracker') }}</h1>
+    <p class="lede">{{ t('tracker_lede') }}</p>
+  </div>
+  <div class="row">
+    <button type="button" class="btn" onclick="document.getElementById('add-dialog').showModal()">
+      <svg class="icon"><use href="#i-plus"/></svg>{{ t('add_manual') }}</button>
+    <form method="post" action="/run/sync">
+      <button class="btn" {% if not gmail_ok %}disabled title="{{ t('setup_gmail') }}"{% endif %}>
+        <svg class="icon"><use href="#i-refresh"/></svg>{{ t('run_sync') }}</button>
+    </form>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="{{ t('status') }}">
+  <a href="/applications" {% if not filter %}aria-current="page"{% endif %}>{{ t('all') }}<span class="n">{{ status_counts.values() | sum }}</span></a>
+  {% for st in statuses if st != 'draft' %}
+    <a href="/applications?status={{ st }}" {% if filter == st %}aria-current="page"{% endif %}>{{ t('st_' ~ st) }}<span class="n">{{ status_counts.get(st, 0) }}</span></a>
   {% endfor %}
-  </tbody>
-</table>
+</nav>
+
+{% if not apps %}
+  <div class="empty">
+    <h2>{{ t('no_apps_title') }}</h2>
+    <p>{{ t('no_apps_text') }}</p>
+    <a class="btn btn-primary" href="/jobs">{{ t('todo_browse') }}</a>
+  </div>
+{% else %}
+<div data-filter-scope>
+  <div class="toolbar">
+    <label class="visually-hidden" for="app-search">{{ t('search_apps') }}</label>
+    <input type="search" id="app-search" placeholder="{{ t('search_apps') }}">
+    <span class="meta-line" style="margin-left:auto">{{ t('last_sync') }}: {{ last_sync_at or t('never') }}</span>
+  </div>
+  <div class="table-wrap">
+  <table class="tracker">
+    <thead><tr>
+      <th scope="col">{{ t('company') }} / {{ t('position') }}</th>
+      <th scope="col">{{ t('status') }}</th>
+      <th scope="col">{{ t('applied_at') }}</th>
+      <th scope="col">{{ t('salary') }}</th>
+      <th scope="col">{{ t('contact') }}</th>
+      <th scope="col">{{ t('last_email') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for a in apps %}
+    <tr data-filter-item data-where="all" data-text="{{ (a.company ~ ' ' ~ a.position ~ ' ' ~ a.contact_name) | lower }}">
+      <td class="co">
+        <a href="/applications/{{ a.id }}">{{ a.company }}</a>
+        <span>{{ a.position }}</span>
+        {% if a.job_url %}<a href="{{ a.job_url }}" target="_blank" rel="noopener" class="small" style="font-weight:400">{{ t('open_posting') }}</a>{% endif %}
+      </td>
+      <td data-label="{{ t('status') }}">
+        {{ rail(a.status, t) }}
+        <form method="post" action="/applications/{{ a.id }}/update">
+          <input type="hidden" name="next" value="/applications{% if filter %}?status={{ filter }}{% endif %}">
+          <label class="visually-hidden" for="st-{{ a.id }}">{{ t('change_status') }}</label>
+          <select id="st-{{ a.id }}" name="status" class="status-select st-{{ a.status }}" onchange="this.form.submit()">
+            {% for st in statuses if st != 'draft' %}<option value="{{ st }}" {% if st == a.status %}selected{% endif %}>{{ t('st_' ~ st) }}</option>{% endfor %}
+          </select>
+        </form>
+      </td>
+      <td data-label="{{ t('applied_at') }}">{{ a.applied_at | localdate if a.applied_at else '' }}</td>
+      <td data-label="{{ t('salary') }}">{{ a.salary_expectation }}</td>
+      <td class="contact" data-label="{{ t('contact') }}">
+        {% if a.contact_name %}<div>{{ a.contact_name }}</div>{% endif %}
+        {% if a.contact_phone %}<div><a href="tel:{{ a.contact_phone | replace(' ', '') }}"><svg class="icon"><use href="#i-phone"/></svg>{{ a.contact_phone }}</a></div>{% endif %}
+        {% if a.contact_email %}<div><a href="mailto:{{ a.contact_email }}"><svg class="icon"><use href="#i-mail"/></svg>{{ a.contact_email }}</a></div>{% endif %}
+      </td>
+      <td data-label="{{ t('last_email') }}">{{ a.last_email_at | localdate if a.last_email_at else '' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
 </div>
 {% endif %}
 
-<details>
-  <summary>{{ t('add_manual') }}</summary>
-  <form method="post" action="/applications/new" class="grid-form">
-    <input name="company" placeholder="{{ t('company') }}" required>
-    <input name="position" placeholder="{{ t('position') }}" required>
-    <input name="job_url" placeholder="URL">
-    <input name="salary_expectation" placeholder="{{ t('salary') }}">
-    <input name="contact_email" placeholder="{{ t('email') }}">
-    <input name="contact_phone" placeholder="{{ t('phone') }}">
-    <button>{{ t('save') }}</button>
+<dialog id="add-dialog" aria-labelledby="add-h">
+  <form method="post" action="/applications/new">
+    <div class="dialog-body stack">
+      <h2 id="add-h">{{ t('add_manual') }}</h2>
+      <p>{{ t('add_manual_text') }}</p>
+      <div class="grid-2">
+        <div class="field"><label for="n-co">{{ t('company') }}</label><input id="n-co" name="company" required></div>
+        <div class="field"><label for="n-pos">{{ t('position') }}</label><input id="n-pos" name="position" required></div>
+      </div>
+      <div class="field"><label for="n-url">{{ t('posting_url') }}</label><input id="n-url" name="job_url" type="url" placeholder="https://"></div>
+      <div class="grid-2">
+        <div class="field"><label for="n-sal">{{ t('salary') }}</label><input id="n-sal" name="salary_expectation"></div>
+        <div class="field"><label for="n-ph">{{ t('phone') }}</label><input id="n-ph" name="contact_phone"></div>
+      </div>
+      <div class="field"><label for="n-em">{{ t('email') }}</label><input id="n-em" name="contact_email" type="email"></div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" onclick="this.closest('dialog').close()">{{ t('cancel') }}</button>
+      <button class="btn btn-primary">{{ t('add_save') }}</button>
+    </div>
   </form>
-</details>
+</dialog>
 {% endblock %}

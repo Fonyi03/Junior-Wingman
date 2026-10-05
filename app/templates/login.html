@@ -1,9 +1,22 @@
-{% extends "base.html" %}
-{% block content %}
-<article class="narrow">
-  <form method="post" action="/login">
-    <label>{{ t('password') }} <input type="password" name="password" autofocus required></label>
-    <button type="submit">{{ t('login') }}</button>
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Junior Wingman</title>
+  <script>try { var th = localStorage.getItem("theme"); if (th) document.documentElement.dataset.theme = th; } catch (e) {}</script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_v }}">
+</head>
+<body>
+<main class="login">
+  <p class="brand"><svg viewBox="0 0 24 24"><path d="M1.5 15.5 12 5l10.5 10.5-4-1.2L12 10l-6.5 4.3z"/><path d="M8.5 17.8 12 15.5l3.5 2.3L12 19z"/></svg>Junior Wingman</p>
+  <form method="post" action="/login" class="panel stack">
+    {% for kind, msg in flashes %}<div class="flash flash-{{ kind }}" role="alert">{{ t(msg) }}</div>{% endfor %}
+    <div class="field"><label for="pw">{{ t('password') }}</label>
+      <input id="pw" type="password" name="password" autofocus required autocomplete="current-password"></div>
+    <button class="btn btn-primary btn-block">{{ t('login') }}</button>
   </form>
-</article>
-{% endblock %}
+</main>
+</body>
+</html>

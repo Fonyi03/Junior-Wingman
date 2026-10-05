@@ -1,51 +1,120 @@
 {% extends "base.html" %}
+{% block title %}{{ t('profile') }} | {% endblock %}
 {% block content %}
-<h2>{{ t('profile') }}</h2>
-<div class="grid">
-  <article>
-    <form method="post" action="/profile/upload" enctype="multipart/form-data">
+<header class="page-head">
+  <div>
+    <h1>{{ t('profile') }}</h1>
+    <p class="lede">{{ t('profile_lede') }}</p>
+  </div>
+</header>
+
+<section aria-labelledby="docs-h">
+  <h2 id="docs-h" style="margin-bottom:.75rem">{{ t('documents') }}</h2>
+  <div class="grid-3">
+    <form class="panel stack" method="post" action="/profile/upload" enctype="multipart/form-data">
       <input type="hidden" name="kind" value="cv">
-      <label>{{ t('cv') }} <input type="file" name="file" accept=".pdf,.docx,.txt" required></label>
-      {% if profile.cv_filename %}<p class="small">✅ {{ profile.cv_filename }} ({{ profile.cv_text|length }} chars)</p>{% endif %}
-      <button class="small-btn">Upload</button>
+      <div>
+        <h3>{{ t('cv_title') }}</h3>
+        {% if profile.cv_filename %}
+          <p class="conn-state ok" style="margin-top:.3rem">{{ profile.cv_filename }}</p>
+        {% else %}
+          <p class="conn-state warn" style="margin-top:.3rem">{{ t('not_uploaded') }}</p>
+        {% endif %}
+      </div>
+      <div class="field">
+        <label for="cv-file">{{ t('cv_file') }}</label>
+        <input id="cv-file" type="file" name="file" accept=".pdf,.docx,.txt" required>
+      </div>
+      <div><button class="btn btn-primary btn-sm">{{ t('upload_cv') if not profile.cv_filename else t('replace_cv') }}</button></div>
     </form>
-  </article>
-  <article>
-    <form method="post" action="/profile/upload" enctype="multipart/form-data">
+
+    <div class="panel stack">
+      <div>
+        <h3>LinkedIn</h3>
+        {% if profile.linkedin_text %}
+          <p class="conn-state ok" style="margin-top:.3rem">{{ t('li_synced') }}</p>
+        {% else %}
+          <p class="conn-state off" style="margin-top:.3rem">{{ t('not_connected') }}</p>
+        {% endif %}
+      </div>
+      <p class="small muted">{{ t('li_profile_hint') }}</p>
+      <div><a class="btn btn-sm" href="/settings#linkedin">{{ t('li_manage') if profile.linkedin_text else t('li_connect') }}</a></div>
+    </div>
+
+    <form class="panel stack" method="post" action="/profile/upload" enctype="multipart/form-data">
       <input type="hidden" name="kind" value="profiles">
-      <label>{{ t('profiles_upload') }} <input type="file" name="file" accept=".pdf,.docx,.txt" required></label>
-      <p class="small muted">{{ t('profiles_hint') }}</p>
-      {% if profile.linkedin_text %}
-        <p class="small">✅ {{ t('li_synced') }} ({{ profile.linkedin_text|length }} chars) · <a href="/settings#linkedin">{{ t('settings') }}</a></p>
-      {% else %}
-        <p class="small"><a href="/settings#linkedin">{{ t('li_connect_hint') }} →</a></p>
-      {% endif %}
-      <button class="small-btn">Upload</button>
+      <div>
+        <h3>{{ t('other_profiles') }}</h3>
+        {% if profile.profiles_text %}
+          <p class="conn-state ok" style="margin-top:.3rem">{{ t('saved_chars') | replace('{n}', profile.profiles_text | length) }}</p>
+        {% else %}
+          <p class="conn-state off" style="margin-top:.3rem">{{ t('optional') }}</p>
+        {% endif %}
+      </div>
+      <div class="field">
+        <label for="pr-file">{{ t('other_profiles_file') }}</label>
+        <input id="pr-file" type="file" name="file" accept=".pdf,.docx,.txt" required>
+        <p class="hint">{{ t('profiles_hint') }}</p>
+      </div>
+      <div><button class="btn btn-sm">{{ t('upload') }}</button></div>
     </form>
-  </article>
-</div>
+  </div>
+</section>
 
 <form method="post" action="/profile">
-  <div class="grid">
-    <label>{{ t('full_name') }} <input name="full_name" value="{{ profile.full_name }}"></label>
-    <label>{{ t('email') }} <input name="email" type="email" value="{{ profile.email }}"></label>
-    <label>{{ t('phone') }} <input name="phone" value="{{ profile.phone }}"></label>
-    <label>{{ t('location') }} <input name="location" value="{{ profile.location }}"></label>
+  <section class="section" aria-labelledby="search-h">
+    <h2 id="search-h">{{ t('what_looking') }}</h2>
+    <div class="panel stack">
+      <div class="field">
+        <label for="kw">{{ t('keywords') }}</label>
+        <input id="kw" name="search_keywords" value="{{ profile.search_keywords }}" placeholder="{{ t('keywords_ph') }}">
+        <p class="hint">{{ t('keywords_hint') }}</p>
+      </div>
+      <fieldset class="row" style="gap:1.5rem">
+        <legend class="label">{{ t('where') }}</legend>
+        <label class="check"><input type="checkbox" name="want_remote" value="true" {% if profile.want_remote %}checked{% endif %}> {{ t('want_remote') }}</label>
+        <label class="check"><input type="checkbox" name="want_hungary" value="true" {% if profile.want_hungary %}checked{% endif %}> {{ t('want_hungary') }}</label>
+      </fieldset>
+      <div class="field" style="max-width:420px">
+        <label for="ms">{{ t('min_score') }}: <output id="ms-out" for="ms">{{ profile.min_score }}</output></label>
+        <input id="ms" type="range" name="min_score" min="30" max="95" step="5" value="{{ profile.min_score }}"
+               oninput="document.getElementById('ms-out').value = this.value">
+        <p class="hint">{{ t('min_score_hint') }}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="sal-h">
+    <h2 id="sal-h">{{ t('salary_title') }}</h2>
+    <div class="panel grid-2">
+      <div class="field"><label for="shuf">{{ t('salary_huf') }}</label>
+        <input id="shuf" name="salary_huf" value="{{ profile.salary_huf }}" placeholder="{{ t('salary_huf_ph') }}"></div>
+      <div class="field"><label for="seur">{{ t('salary_eur') }}</label>
+        <input id="seur" name="salary_eur" value="{{ profile.salary_eur }}" placeholder="{{ t('salary_eur_ph') }}"></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="me-h">
+    <h2 id="me-h">{{ t('personal') }}</h2>
+    <div class="panel stack">
+      <p class="hint" style="margin:0">{{ t('personal_hint') }}</p>
+      <div class="grid-2">
+        <div class="field"><label for="fn">{{ t('full_name') }}</label><input id="fn" name="full_name" value="{{ profile.full_name }}" autocomplete="name"></div>
+        <div class="field"><label for="loc">{{ t('location') }}</label><input id="loc" name="location" value="{{ profile.location }}"></div>
+        <div class="field"><label for="em">{{ t('email') }}</label><input id="em" name="email" type="email" value="{{ profile.email }}" autocomplete="email"></div>
+        <div class="field"><label for="ph">{{ t('phone') }}</label><input id="ph" name="phone" value="{{ profile.phone }}" autocomplete="tel"></div>
+      </div>
+      <div class="field"><label for="notes">{{ t('letter_notes') }}</label>
+        <textarea id="notes" name="notes" rows="3" placeholder="{{ t('letter_notes_ph') }}">{{ profile.notes }}</textarea></div>
+      <details class="more"><summary>{{ t('edit_profiles_text') }}</summary>
+        <label class="visually-hidden" for="pt">{{ t('other_profiles') }}</label>
+        <textarea id="pt" name="profiles_text" rows="10" style="margin-top:.6rem">{{ profile.profiles_text }}</textarea></details>
+    </div>
+  </section>
+
+  <div class="row section">
+    <button class="btn btn-primary">{{ t('save_profile') }}</button>
+    <button class="btn" formaction="/profile/analyze" {% if not profile.cv_text and not profile.linkedin_text %}disabled{% endif %}>{{ t('analyze') }}</button>
   </div>
-  <label>{{ t('keywords') }} <input name="search_keywords" value="{{ profile.search_keywords }}"></label>
-  <fieldset class="row">
-    <label><input type="checkbox" name="want_remote" value="true" {% if profile.want_remote %}checked{% endif %}> {{ t('want_remote') }}</label>
-    <label><input type="checkbox" name="want_hungary" value="true" {% if profile.want_hungary %}checked{% endif %}> {{ t('want_hungary') }}</label>
-  </fieldset>
-  <div class="grid">
-    <label>{{ t('salary_huf') }} <input name="salary_huf" value="{{ profile.salary_huf }}" placeholder="pl. bruttó 900 000 Ft/hó"></label>
-    <label>{{ t('salary_eur') }} <input name="salary_eur" value="{{ profile.salary_eur }}" placeholder="e.g. €55,000/year"></label>
-    <label>{{ t('min_score') }} <input name="min_score" type="number" min="0" max="100" value="{{ profile.min_score }}"></label>
-  </div>
-  <label>{{ t('letter_notes') }} <textarea name="notes" rows="2">{{ profile.notes }}</textarea></label>
-  <details><summary class="small">{{ t('profiles_upload') }} – text</summary>
-    <textarea name="profiles_text" rows="10">{{ profile.profiles_text }}</textarea></details>
-  <button>{{ t('save') }}</button>
 </form>
-<form method="post" action="/profile/analyze"><button class="secondary outline" {% if not profile.cv_text and not profile.linkedin_text %}disabled{% endif %}>{{ t('analyze') }}</button></form>
 {% endblock %}

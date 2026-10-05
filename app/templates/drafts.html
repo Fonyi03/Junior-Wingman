@@ -1,40 +1,109 @@
 {% extends "base.html" %}
+{% block title %}{{ t('drafts') }} | {% endblock %}
 {% block content %}
-<h2>{{ t('drafts') }}</h2>
-{% if not apps %}<p class="muted">{{ t('no_drafts') }}</p>{% endif %}
+<header class="page-head">
+  <div>
+    <h1>{{ t('drafts') }}</h1>
+    <p class="lede">{{ t('drafts_lede') }}</p>
+  </div>
+</header>
+
+{% if not apps %}
+  <div class="empty">
+    <h2>{{ t('drafts_empty_title') }}</h2>
+    <p>{{ t('drafts_empty_text') }}</p>
+    <a class="btn" href="/jobs">{{ t('todo_browse') }}</a>
+  </div>
+{% endif %}
+
 {% for a in apps %}
 {% set j = jobs.get(a.job_id) %}
-<article id="app-{{ a.id }}">
-  <header class="row spread">
-    <div><strong>{{ a.position }}</strong> · {{ a.company }}
-      {% if j %}<br><span class="small muted">{{ j.location }} · {{ t('score') }}: {{ j.score }}</span>{% endif %}</div>
-    {% if a.job_url %}<a href="{{ a.job_url }}" target="_blank" rel="noopener">{{ t('open_posting') }} ↗</a>{% endif %}
-  </header>
+<article class="draft" id="app-{{ a.id }}" aria-labelledby="draft-h-{{ a.id }}">
   <form method="post" action="/applications/{{ a.id }}/update">
     <input type="hidden" name="next" value="/drafts#app-{{ a.id }}">
-    <div class="grid">
-      <label>{{ t('email') }} <input name="contact_email" value="{{ a.contact_email }}"></label>
-      <label>{{ t('phone') }} <input name="contact_phone" value="{{ a.contact_phone }}"></label>
-      <label>{{ t('salary') }} <input name="salary_expectation" value="{{ a.salary_expectation }}"></label>
-      <label>{{ t('language') }}
-        <select name="language"><option value="hu" {% if a.language == 'hu' %}selected{% endif %}>HU</option><option value="en" {% if a.language == 'en' %}selected{% endif %}>EN</option></select>
-      </label>
+    <div class="draft-head">
+      <div>
+        <h2 id="draft-h-{{ a.id }}">{{ a.position }}</h2>
+        <p class="muted">{{ a.company }}{% if j and j.location %}, {{ j.location }}{% endif %}</p>
+      </div>
+      <div class="row">
+        {% if j and j.score is not none %}
+          <span class="score {% if j.score >= 75 %}hi{% elif j.score >= 55 %}mid{% else %}lo{% endif %}" title="{{ t('score') }}">{{ j.score }}</span>
+        {% endif %}
+        {% if a.job_url %}<a class="btn btn-sm" href="{{ a.job_url }}" target="_blank" rel="noopener">
+          <svg class="icon"><use href="#i-external"/></svg>{{ t('open_posting') }}</a>{% endif %}
+      </div>
     </div>
-    <label>{{ t('subject') }} <input name="cover_letter_subject" value="{{ a.cover_letter_subject }}"></label>
-    <label>{{ t('cover_letter') }} <textarea name="cover_letter" rows="12">{{ a.cover_letter }}</textarea></label>
-    <button class="secondary outline small-btn">{{ t('save') }}</button>
+
+    <div class="draft-body">
+      <div class="draft-side stack">
+        <div class="field">
+          <label for="ce-{{ a.id }}">{{ t('send_to') }}</label>
+          <input id="ce-{{ a.id }}" name="contact_email" type="email" value="{{ a.contact_email }}" placeholder="hr@ceg.hu">
+        </div>
+        <div class="field">
+          <label for="cn-{{ a.id }}">{{ t('contact_name') }}</label>
+          <input id="cn-{{ a.id }}" name="contact_name" value="{{ a.contact_name }}">
+        </div>
+        <div class="field">
+          <label for="cp-{{ a.id }}">{{ t('phone') }}</label>
+          <input id="cp-{{ a.id }}" name="contact_phone" value="{{ a.contact_phone }}">
+        </div>
+        <div class="field">
+          <label for="sal-{{ a.id }}">{{ t('salary') }}</label>
+          <input id="sal-{{ a.id }}" name="salary_expectation" value="{{ a.salary_expectation }}">
+          <p class="hint">{{ t('salary_hint') }}</p>
+        </div>
+        <div class="field">
+          <label for="lang-{{ a.id }}">{{ t('letter_language') }}</label>
+          <select id="lang-{{ a.id }}" name="language">
+            <option value="hu" {% if a.language == 'hu' %}selected{% endif %}>Magyar</option>
+            <option value="en" {% if a.language == 'en' %}selected{% endif %}>English</option>
+          </select>
+        </div>
+        {% if j and j.score_reason %}<p class="small muted">{{ j.score_reason }}</p>{% endif %}
+        {% if j %}<details class="more"><summary>{{ t('full_posting') }}</summary><div class="desc">{{ j.description[:6000] }}</div></details>{% endif %}
+      </div>
+
+      <div class="draft-letter stack">
+        <div class="field">
+          <label for="subj-{{ a.id }}">{{ t('subject') }}</label>
+          <input id="subj-{{ a.id }}" name="cover_letter_subject" value="{{ a.cover_letter_subject }}">
+        </div>
+        <div class="field">
+          <label for="letter-{{ a.id }}">{{ t('cover_letter') }}</label>
+          <textarea id="letter-{{ a.id }}" name="cover_letter" rows="16">{{ a.cover_letter }}</textarea>
+        </div>
+        {% if not a.contact_email %}
+          <div class="notice"><svg class="icon"><use href="#i-alert"/></svg><span>{{ t('manual_hint') }}</span></div>
+        {% elif not gmail_ok %}
+          <div class="notice"><svg class="icon"><use href="#i-alert"/></svg><span>{{ t('gmail_needed') }} <a href="/settings">{{ t('settings') }}</a></span></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="draft-actions">
+      {# first submit button = default for Enter key: must be the harmless save #}
+      <button class="btn" style="order:3">{{ t('save_draft') }}</button>
+      {% if a.contact_email and gmail_ok %}
+        <button class="btn btn-primary" formaction="/applications/{{ a.id }}/send"
+                data-confirm="{{ t('confirm_send_title') | replace('{company}', a.company) }}"
+                data-confirm-text="{{ t('confirm_send_text') | replace('{email}', a.contact_email) }}"
+                data-confirm-ok="{{ t('approve_send') }}">
+          <svg class="icon"><use href="#i-send"/></svg>{{ t('approve_send') }}</button>
+      {% endif %}
+      <button class="btn {{ 'btn-primary' if not (a.contact_email and gmail_ok) }}" formaction="/applications/{{ a.id }}/manual"
+              data-confirm="{{ t('confirm_manual_title') }}" data-confirm-text="{{ t('confirm_manual_text') }}"
+              data-confirm-ok="{{ t('approve_manual') }}">
+        <svg class="icon"><use href="#i-check"/></svg>{{ t('approve_manual') }}</button>
+      <span class="spacer" style="order:4"></span>
+      <button class="btn btn-ghost" style="order:5" formaction="/applications/{{ a.id }}/regenerate">
+        <svg class="icon"><use href="#i-refresh"/></svg>{{ t('regenerate') }}</button>
+      <button class="btn btn-ghost btn-danger" style="order:6" formaction="/applications/{{ a.id }}/delete"
+              data-confirm="{{ t('confirm_discard_title') }}" data-confirm-text="{{ t('confirm_discard_text') }}"
+              data-confirm-ok="{{ t('discard') }}" data-confirm-danger="1">{{ t('discard') }}</button>
+    </div>
   </form>
-  {% if not a.contact_email %}<p class="small muted">{{ t('manual_hint') }}</p>{% endif %}
-  <footer class="row">
-    {% if a.contact_email and gmail_ok %}
-      <form method="post" action="/applications/{{ a.id }}/send"
-            onsubmit="return confirm('{{ a.contact_email }} ← {{ a.cover_letter_subject|e }}?')">
-        <button>{{ t('approve_send') }}</button></form>
-    {% endif %}
-    <form method="post" action="/applications/{{ a.id }}/manual"><button class="secondary">{{ t('approve_manual') }}</button></form>
-    <form method="post" action="/applications/{{ a.id }}/regenerate"><button class="secondary outline">{{ t('regenerate') }}</button></form>
-    <form method="post" action="/applications/{{ a.id }}/delete"><button class="contrast outline">{{ t('discard') }}</button></form>
-  </footer>
 </article>
 {% endfor %}
 {% endblock %}

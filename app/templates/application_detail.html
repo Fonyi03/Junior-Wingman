@@ -1,37 +1,65 @@
 {% extends "base.html" %}
+{% from "_macros.html" import rail %}
+{% block title %}{{ a.company }} | {% endblock %}
 {% block content %}
-<h2>{{ a.company }} – {{ a.position }}</h2>
-<form method="post" action="/applications/{{ a.id }}/update">
-  <input type="hidden" name="next" value="/applications/{{ a.id }}">
-  <div class="grid">
-    <label>{{ t('status') }}
-      <select name="status">{% for st in statuses %}<option value="{{ st }}" {% if st == a.status %}selected{% endif %}>{{ t('st_' ~ st) }}</option>{% endfor %}</select>
-    </label>
-    <label>{{ t('salary') }} <input name="salary_expectation" value="{{ a.salary_expectation }}"></label>
+<p class="small" style="margin-bottom:.75rem"><a href="/applications">{{ t('back_to_tracker') }}</a></p>
+<header class="page-head">
+  <div>
+    <h1>{{ a.company }}</h1>
+    <p class="lede">{{ a.position }}</p>
   </div>
-  <div class="grid">
-    <label>{{ t('contact') }} <input name="contact_name" value="{{ a.contact_name }}"></label>
-    <label>{{ t('email') }} <input name="contact_email" value="{{ a.contact_email }}"></label>
-    <label>{{ t('phone') }} <input name="contact_phone" value="{{ a.contact_phone }}"></label>
-  </div>
-  <label>{{ t('notes') }} <textarea name="notes" rows="3">{{ a.notes }}</textarea></label>
-  <button>{{ t('save') }}</button>
-</form>
-<p class="small muted">{{ t('applied_at') }}: {{ a.applied_at.strftime('%Y-%m-%d %H:%M') if a.applied_at else '–' }} · {{ a.method }}
-  {% if a.job_url %} · <a href="{{ a.job_url }}" target="_blank" rel="noopener">{{ t('open_posting') }} ↗</a>{% endif %}</p>
+  {% if a.job_url %}<a class="btn" href="{{ a.job_url }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-external"/></svg>{{ t('open_posting') }}</a>{% endif %}
+</header>
 
-<h4>{{ t('emails') }}</h4>
-{% if events %}
-<table class="striped small">
-  {% for e in events %}
-  <tr><td>{{ e.received_at.strftime('%Y-%m-%d') if e.received_at else '' }}</td><td>{{ e.from_addr }}</td>
-      <td><strong>{{ e.subject }}</strong><br>{{ e.snippet }}</td>
-      <td>{% if e.detected_status %}<span class="pill st-{{ e.detected_status }}">{{ e.detected_status }}</span>{% endif %}</td></tr>
-  {% endfor %}
-</table>
-{% else %}<p class="muted">–</p>{% endif %}
+<div class="panel">
+  {{ rail(a.status, t, large=true) }}
+  <div class="rail-labels" aria-hidden="true">
+    {% for st in ['applied', 'received', 'interview', 'offer'] %}<span>{{ t('st_' ~ st) }}</span>{% endfor %}
+  </div>
+  <p style="margin-top:.6rem"><span class="status st-{{ a.status }}">{{ t('st_' ~ a.status) }}</span>
+    <span class="muted small">
+      {% if a.applied_at %}{{ t('applied_on') | replace('{d}', a.applied_at | localdate) }}{% endif %}
+      {% if a.method %}({{ t('method_' ~ a.method) }}){% endif %}
+    </span></p>
+</div>
+
+<form method="post" action="/applications/{{ a.id }}/update" class="panel stack">
+  <input type="hidden" name="next" value="/applications/{{ a.id }}">
+  <h2>{{ t('details') }}</h2>
+  <div class="grid-2">
+    <div class="field"><label for="d-st">{{ t('status') }}</label>
+      <select id="d-st" name="status">{% for st in statuses if st != 'draft' %}<option value="{{ st }}" {% if st == a.status %}selected{% endif %}>{{ t('st_' ~ st) }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="d-sal">{{ t('salary') }}</label><input id="d-sal" name="salary_expectation" value="{{ a.salary_expectation }}"></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="d-cn">{{ t('contact_name') }}</label><input id="d-cn" name="contact_name" value="{{ a.contact_name }}"></div>
+    <div class="field"><label for="d-ce">{{ t('email') }}</label><input id="d-ce" name="contact_email" type="email" value="{{ a.contact_email }}"></div>
+    <div class="field"><label for="d-cp">{{ t('phone') }}</label><input id="d-cp" name="contact_phone" value="{{ a.contact_phone }}"></div>
+  </div>
+  <div class="field"><label for="d-notes">{{ t('notes') }}</label><textarea id="d-notes" name="notes" rows="3" placeholder="{{ t('notes_hint') }}">{{ a.notes }}</textarea></div>
+  <div><button class="btn btn-primary">{{ t('save') }}</button></div>
+</form>
+
+<section class="section">
+  <h2>{{ t('emails') }}</h2>
+  {% if events %}
+    <ul class="activity panel" style="margin-top:.75rem">
+    {% for e in events %}
+      <li><span class="when">{{ e.received_at | localdate if e.received_at else '' }}</span>
+        <span><strong>{{ e.subject }}</strong><br><span class="muted small">{{ e.from_addr }}</span><br><span class="small">{{ e.snippet }}</span></span>
+        {% if e.detected_status %}<span class="status st-{{ e.detected_status }}" style="margin-left:auto">{{ t('st_' ~ e.detected_status) }}</span>{% endif %}</li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted" style="margin-top:.5rem">{{ t('no_emails') }}</p>
+  {% endif %}
+</section>
 
 {% if a.cover_letter %}
-<details><summary>{{ t('cover_letter') }}</summary><p><strong>{{ a.cover_letter_subject }}</strong></p><pre class="desc">{{ a.cover_letter }}</pre></details>
+<section class="section">
+  <details class="more panel"><summary>{{ t('sent_letter') }}</summary>
+    <p style="margin-top:.75rem"><strong>{{ a.cover_letter_subject }}</strong></p>
+    <div class="desc">{{ a.cover_letter }}</div></details>
+</section>
 {% endif %}
 {% endblock %}

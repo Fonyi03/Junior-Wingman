@@ -1,0 +1,8 @@
+{# Stage rail: Applied -> Acknowledged -> Interview -> Offer #}
+{% macro rail(status, t, large=false) -%}
+  {%- set stages = ['applied', 'received', 'interview', 'offer'] -%}
+  {%- set idx = stages.index(status) if status in stages else -1 -%}
+  <span class="rail {{ 'rail-lg' if large }}" data-status="{{ status }}" aria-hidden="true">
+    {%- for s in stages %}<i class="{{ 'on' if loop.index0 <= idx }}"></i>{% endfor -%}
+  </span>
+{%- endmacro %}

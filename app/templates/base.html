@@ -3,32 +3,157 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Job Hunter</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/static/app.css">
+  <title>{% block title %}{% endblock %}Junior Wingman</title>
+  <script>try { var th = localStorage.getItem("theme"); if (th) document.documentElement.dataset.theme = th; } catch (e) {}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_v }}">
 </head>
 <body>
-<header class="container">
-  <nav>
-    <ul><li><a href="/" class="brand"><strong>Job Hunter</strong></a></li></ul>
-    <ul class="nav-links">
-      <li><a href="/jobs">{{ t('jobs') }}</a></li>
-      <li><a href="/drafts">{{ t('drafts') }}{% if drafts_count %} <span class="badge">{{ drafts_count }}</span>{% endif %}</a></li>
-      <li><a href="/applications">{{ t('tracker') }}</a></li>
-      <li><a href="/profile">{{ t('profile') }}</a></li>
-      <li><a href="/settings">{{ t('settings') }}</a></li>
-      <li><a href="/lang/{{ 'en' if lang == 'hu' else 'hu' }}" class="secondary">{{ 'EN' if lang == 'hu' else 'HU' }}</a></li>
-    </ul>
-  </nav>
-</header>
-<main class="container">
-  {% for kind, msg in flashes %}
-    <article class="flash flash-{{ kind }}">{{ t(msg) }}</article>
-  {% endfor %}
-  {% block content %}{% endblock %}
-</main>
-<footer class="container muted small">
-  Job Hunter · MIT · listings via Remotive, Arbeitnow, <a href="https://remoteok.com">Remote OK</a>, JSearch
-</footer>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-logo" viewBox="0 0 24 24"><path d="M1.5 15.5 12 5l10.5 10.5-4-1.2L12 10l-6.5 4.3z"/><path d="M8.5 17.8 12 15.5l3.5 2.3L12 19z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></symbol>
+  <symbol id="i-jobs" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></symbol>
+  <symbol id="i-approve" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-system" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2"/><path d="M21 4v5h-5M3 20v-5h5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></symbol>
+</svg>
+
+<div class="shell">
+  {% set path = request.url.path %}
+  <aside class="sidebar">
+    <a class="brand" href="/"><svg><use href="#i-logo"/></svg>Junior Wingman</a>
+    <nav class="nav" aria-label="{{ t('nav_label') }}">
+      <a href="/" {% if path == '/' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-home"/></svg>{{ t('dashboard') }}</a>
+      <a href="/jobs" {% if path.startswith('/jobs') %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-jobs"/></svg>{{ t('jobs') }}
+        {% if suggested_count %}<span class="count" title="{{ t('jobs_new_count') }}">{{ suggested_count }}</span>{% endif %}</a>
+      <a href="/drafts" {% if path.startswith('/drafts') %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-approve"/></svg>{{ t('drafts') }}
+        {% if drafts_count %}<span class="count" title="{{ t('drafts_waiting') }}">{{ drafts_count }}</span>{% endif %}</a>
+      <a href="/applications" {% if path.startswith('/applications') %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-list"/></svg>{{ t('tracker') }}</a>
+      <a href="/profile" {% if path.startswith('/profile') %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-user"/></svg>{{ t('profile') }}</a>
+      <a href="/settings" {% if path.startswith('/settings') %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-settings"/></svg>{{ t('settings') }}</a>
+    </nav>
+    <form method="post" action="/run/search" class="search-btn">
+      <button class="btn btn-primary btn-block"><svg class="icon"><use href="#i-search"/></svg>{{ t('run_search') }}</button>
+    </form>
+    <div class="sidebar-foot">
+      <a class="btn btn-ghost btn-sm" href="/lang/{{ 'en' if lang == 'hu' else 'hu' }}" lang="{{ 'en' if lang == 'hu' else 'hu' }}"
+         title="{{ t('switch_lang') }}">{{ 'English' if lang == 'hu' else 'Magyar' }}</a>
+      <button type="button" class="btn btn-ghost icon-btn" id="theme-toggle" aria-label="{{ t('theme') }}"
+              data-label-system="{{ t('theme_system') }}" data-label-light="{{ t('theme_light') }}" data-label-dark="{{ t('theme_dark') }}">
+        <svg class="icon"><use href="#i-system"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    {% for kind, msg in flashes %}
+      <div class="flash flash-{{ kind }}" role="{{ 'alert' if kind == 'error' else 'status' }}">
+        <svg class="icon"><use href="#{{ 'i-alert' if kind == 'error' else 'i-check' }}"/></svg><div>{{ t(msg) }}</div>
+      </div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+    <footer class="site">
+      Junior Wingman, MIT. {{ t('listings_from') }} Remotive, Arbeitnow, <a href="https://remoteok.com">Remote OK</a>, JSearch.
+    </footer>
+  </main>
+</div>
+
+<dialog id="confirm-dialog" aria-labelledby="confirm-title">
+  <div class="dialog-body">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-text"></p>
+  </div>
+  <div class="dialog-actions">
+    <button type="button" class="btn" id="confirm-cancel">{{ t('cancel') }}</button>
+    <button type="button" class="btn btn-primary" id="confirm-ok"></button>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  // Theme toggle: system -> light -> dark -> system
+  var btn = document.getElementById("theme-toggle"), root = document.documentElement;
+  var order = ["system", "light", "dark"], icons = { system: "#i-system", light: "#i-sun", dark: "#i-moon" };
+  function current() { return root.dataset.theme || "system"; }
+  function paint() {
+    var m = current();
+    btn.querySelector("use").setAttribute("href", icons[m]);
+    btn.title = btn.dataset["label" + m.charAt(0).toUpperCase() + m.slice(1)];
+  }
+  btn.addEventListener("click", function () {
+    var next = order[(order.indexOf(current()) + 1) % order.length];
+    if (next === "system") { delete root.dataset.theme; } else { root.dataset.theme = next; }
+    try { next === "system" ? localStorage.removeItem("theme") : localStorage.setItem("theme", next); } catch (e) {}
+    paint();
+  });
+  paint();
+
+  // Confirmation dialog for forms or submit buttons carrying data-confirm
+  var dlg = document.getElementById("confirm-dialog"), pending = null;
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target, submitter = ev.submitter;
+    var src = (submitter && submitter.dataset.confirm) ? submitter : form;
+    if (!src.dataset || !src.dataset.confirm || form.dataset.confirmed) return;
+    ev.preventDefault();
+    pending = { form: form, submitter: submitter };
+    document.getElementById("confirm-title").textContent = src.dataset.confirm;
+    document.getElementById("confirm-text").textContent = src.dataset.confirmText || "";
+    document.getElementById("confirm-ok").textContent = src.dataset.confirmOk || "OK";
+    document.getElementById("confirm-ok").className = "btn " + (src.dataset.confirmDanger ? "btn-danger-solid" : "btn-primary");
+    dlg.showModal();
+  });
+  // Buttons drive the outcome directly (the dialog "close" event is not reliable in every browser)
+  document.getElementById("confirm-cancel").addEventListener("click", function () { pending = null; dlg.close(); });
+  document.getElementById("confirm-ok").addEventListener("click", function () {
+    var p = pending;
+    pending = null;
+    dlg.close();
+    if (!p) return;
+    p.form.dataset.confirmed = "1";
+    if (p.submitter) { p.form.requestSubmit(p.submitter); } else { p.form.requestSubmit(); }
+    delete p.form.dataset.confirmed;
+  });
+  dlg.addEventListener("cancel", function () { pending = null; });  // Esc key
+
+  // Client-side list filtering: [data-filter-list] + inputs with data-filter
+  document.querySelectorAll("[data-filter-scope]").forEach(function (scope) {
+    var items = scope.querySelectorAll("[data-filter-item]");
+    var search = scope.querySelector("input[type=search]");
+    var chips = scope.querySelectorAll(".chip[data-where]");
+    var where = "all";
+    function apply() {
+      var q = search ? search.value.trim().toLowerCase() : "";
+      items.forEach(function (el) {
+        var okText = !q || el.dataset.text.indexOf(q) !== -1;
+        var okWhere = where === "all" || el.dataset.where === where;
+        el.hidden = !(okText && okWhere);
+      });
+    }
+    if (search) search.addEventListener("input", apply);
+    chips.forEach(function (c) {
+      c.addEventListener("click", function () {
+        where = c.dataset.where;
+        chips.forEach(function (o) { o.setAttribute("aria-pressed", o === c ? "true" : "false"); });
+        apply();
+      });
+    });
+  });
+})();
+</script>
 </body>
 </html>

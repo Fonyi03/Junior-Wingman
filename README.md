@@ -120,7 +120,18 @@ DATA_DIR=./data uvicorn app.main:app --reload
 pytest -q
 ```
 
-Stack: FastAPI · Jinja2 + Pico.css · SQLModel/SQLite · APScheduler · Anthropic SDK · Gmail API.
+Stack: FastAPI, Jinja2 templates with a small hand-written design system (`app/static/app.css`, light/dark),
+SQLModel/SQLite, APScheduler, Anthropic SDK, Gmail API.
+
+Demo data for UI work (never touches a non-empty database):
+
+```bash
+DATA_DIR=/tmp/demo python -m scripts.demo_data
+```
+
+The repository ships Anthropic's open-source design skills in `.claude/skills/` (frontend-design,
+design-critique, design-system, accessibility-review, ux-copy; Apache 2.0). Claude Code picks them up
+automatically when working on this project.
 
 ---
 

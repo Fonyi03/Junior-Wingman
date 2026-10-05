@@ -1,36 +1,100 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>{{ t('dashboard') }}</h2>
-{% if li.error == 'token_expired' %}
-  <article class="flash flash-error">⚠️ {{ t('li_expired') }} <a href="/settings#linkedin">{{ t('settings') }} →</a></article>
-{% endif %}
-<div class="stats">
-  <a href="/jobs" class="stat"><span>{{ suggested }}</span>{{ t('jobs') }}</a>
-  <a href="/drafts" class="stat"><span>{{ drafts_count }}</span>{{ t('drafts') }}</a>
-  {% for st in ['applied', 'received', 'interview', 'offer', 'rejected'] %}
-    <a href="/applications?status={{ st }}" class="stat st-{{ st }}"><span>{{ counts.get(st, 0) }}</span>{{ t('st_' ~ st) }}</a>
-  {% endfor %}
-</div>
+<header class="page-head">
+  <div>
+    <h1>{{ t('dashboard') }}</h1>
+    <p class="lede">{{ t('dash_lede') }}</p>
+  </div>
+</header>
 
-<div class="grid">
-  <article>
-    <p><strong>{{ t('last_search') }}:</strong> <span class="small">{{ last_search or t('never') }}</span></p>
-    <p><strong>{{ t('last_sync') }}:</strong> <span class="small">{{ last_sync or t('never') }}</span></p>
-    <p class="small">{{ t('ai') }}: {{ '✅' if llm[0] else '⚠️' }} {{ llm[1] }} · Gmail: {{ '✅' if gmail_ok else '⚠️' }}</p>
-    <div class="row">
-      <form method="post" action="/run/search"><button>{{ t('run_search') }}</button></form>
-      <form method="post" action="/run/sync"><button class="secondary" {% if not gmail_ok %}disabled{% endif %}>{{ t('run_sync') }}</button></form>
-    </div>
-  </article>
-  <article>
-    <h4>{{ t('tracker') }}</h4>
+{% set setup_steps = [
+  (profile.cv_text or profile.linkedin_text, t('setup_cv'), '/profile'),
+  (profile.search_keywords, t('setup_keywords'), '/profile'),
+  (llm[0], t('setup_ai'), '/settings'),
+  (gmail_ok, t('setup_gmail'), '/settings'),
+] %}
+{% if not (setup_steps | selectattr(0) | list | length == setup_steps | length) %}
+<section class="section" aria-labelledby="setup-h">
+  <h2 id="setup-h">{{ t('setup_title') }}</h2>
+  <ol class="setup">
+    {% for done, label, href in setup_steps %}
+      <li class="{{ 'done' if done }}">
+        <span class="setup-text">{{ label }}</span>
+        {% if not done %}<a class="btn btn-sm" href="{{ href }}">{{ t('setup_do') }}</a>{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+<section class="section" aria-labelledby="todo-h">
+  <h2 id="todo-h">{{ t('todo_title') }}</h2>
+  {% set interviews = counts.get('interview', 0) %}
+  <ul class="todo">
+    {% if li.error == 'token_expired' %}
+      <li><span class="dot red"></span>
+        <div class="todo-text"><strong>{{ t('li_expired_short') }}</strong><span>{{ t('li_expired') }}</span></div>
+        <a class="btn btn-sm" href="/settings#linkedin">{{ t('li_renew') }}</a></li>
+    {% endif %}
+    {% if drafts_count %}
+      <li><span class="dot"></span>
+        <div class="todo-text"><strong>{{ t('todo_drafts') | replace('{n}', drafts_count) }}</strong><span>{{ t('todo_drafts_sub') }}</span></div>
+        <a class="btn btn-primary btn-sm" href="/drafts">{{ t('todo_review') }}</a></li>
+    {% endif %}
+    {% if suggested_count %}
+      <li><span class="dot blue"></span>
+        <div class="todo-text"><strong>{{ t('todo_jobs') | replace('{n}', suggested_count) }}</strong><span>{{ t('todo_jobs_sub') }}</span></div>
+        <a class="btn btn-sm" href="/jobs">{{ t('todo_browse') }}</a></li>
+    {% endif %}
+    {% if interviews %}
+      <li><span class="dot"></span>
+        <div class="todo-text"><strong>{{ t('todo_interviews') | replace('{n}', interviews) }}</strong><span>{{ t('todo_interviews_sub') }}</span></div>
+        <a class="btn btn-sm" href="/applications?status=interview">{{ t('todo_open') }}</a></li>
+    {% endif %}
+    {% if not (drafts_count or suggested_count or interviews or li.error == 'token_expired') %}
+      <li class="todo-empty">{{ t('todo_empty') | replace('{h}', cfg.search_interval_hours) }}</li>
+    {% endif %}
+  </ul>
+</section>
+
+<section class="section" aria-labelledby="pipe-h">
+  <div class="row spread" style="margin-bottom:.75rem">
+    <h2 id="pipe-h">{{ t('tracker') }}</h2>
+    <a href="/applications" class="small">{{ t('show_all') }}</a>
+  </div>
+  <nav class="pipeline" aria-label="{{ t('tracker') }}">
+    {% for st in ['applied', 'received', 'interview', 'offer', 'rejected'] %}
+      <a href="/applications?status={{ st }}" class="st-{{ st }}"><b>{{ counts.get(st, 0) }}</b>{{ t('st_' ~ st) }}</a>
+    {% endfor %}
+  </nav>
+</section>
+
+<section class="section grid-2">
+  <div class="panel">
+    <h2 style="margin-bottom:.5rem">{{ t('recent') }}</h2>
     {% if recent %}
-      <ul class="plain">
+      <ul class="activity">
       {% for a in recent %}
-        <li><a href="/applications/{{ a.id }}">{{ a.company }} – {{ a.position }}</a> <span class="pill st-{{ a.status }}">{{ t('st_' ~ a.status) }}</span></li>
+        <li><span class="when">{{ a.updated_at.strftime('%m.%d.') if lang == 'hu' else a.updated_at.strftime('%b %d') }}</span>
+          <span><a href="/applications/{{ a.id }}">{{ a.company }}</a>, {{ a.position }}</span>
+          <span class="status st-{{ a.status }}" style="margin-left:auto">{{ t('st_' ~ a.status) }}</span></li>
       {% endfor %}
       </ul>
-    {% else %}<p class="muted">{{ t('no_apps') }}</p>{% endif %}
-  </article>
-</div>
+    {% else %}
+      <p class="muted">{{ t('no_apps_short') }}</p>
+    {% endif %}
+  </div>
+  <div class="panel stack">
+    <h2>{{ t('automation') }}</h2>
+    <p class="small"><strong>{{ t('last_search') }}:</strong> {{ last_search_at or t('never') }}<br>
+      <span class="muted">{{ t('every_h') | replace('{h}', cfg.search_interval_hours) }}</span></p>
+    <p class="small"><strong>{{ t('last_sync') }}:</strong> {{ last_sync_at or t('never') }}<br>
+      <span class="muted">{{ t('every_m') | replace('{m}', cfg.email_sync_minutes) }}</span></p>
+    <div class="row">
+      <form method="post" action="/run/search"><button class="btn btn-sm"><svg class="icon"><use href="#i-search"/></svg>{{ t('run_search') }}</button></form>
+      <form method="post" action="/run/sync"><button class="btn btn-sm" {% if not gmail_ok %}disabled title="{{ t('setup_gmail') }}"{% endif %}>
+        <svg class="icon"><use href="#i-refresh"/></svg>{{ t('run_sync') }}</button></form>
+    </div>
+  </div>
+</section>
 {% endblock %}

@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     max_drafts_per_run: int = 5
     email_lookback_days: int = 30
     linkedin_sync_days: int = 7
+    # Used to display dates; storage is always UTC
+    timezone: str = "Europe/Budapest"
 
     @property
     def db_url(self) -> str:

@@ -14,3 +14,4 @@ beautifulsoup4>=4.12
 google-api-python-client>=2.140
 google-auth>=2.34
 google-auth-oauthlib>=1.2
+tzdata>=2024.1

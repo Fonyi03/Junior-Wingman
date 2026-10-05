@@ -1,30 +1,83 @@
 {% extends "base.html" %}
+{% block title %}{{ t('jobs') }} | {% endblock %}
 {% block content %}
-<h2>{{ t('jobs') }}</h2>
-<p class="row small">
+<header class="page-head">
+  <div>
+    <h1>{{ t('jobs') }}</h1>
+    <p class="lede">{{ t('jobs_lede') | replace('{n}', profile.min_score) }}</p>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="{{ t('jobs') }}">
   {% for k in ['suggested', 'low', 'dismissed', 'all'] %}
-    <a href="/jobs?show={{ k }}" {% if show == k %}aria-current="page" class="active"{% endif %}>{{ k }}</a>
+    <a href="/jobs?show={{ k }}" {% if show == k %}aria-current="page"{% endif %}>{{ t('jobs_tab_' ~ k) }}<span class="n">{{ tab_counts.get(k, 0) }}</span></a>
   {% endfor %}
-</p>
-{% if not jobs %}<p class="muted">{{ t('no_jobs') }}</p>{% endif %}
-{% for j in jobs %}
-<article class="job">
-  <header class="row spread">
-    <div>
-      <strong>{{ j.title }}</strong> · {{ j.company }}<br>
-      <span class="small muted">{{ j.location }}{% if j.is_remote %} · remote{% endif %} · {{ j.source }}{% if j.salary_text %} · {{ j.salary_text }}{% endif %} · {{ j.language|upper }}</span>
+</nav>
+
+{% if not jobs %}
+  <div class="empty">
+    {% if show == 'suggested' %}
+      <h2>{{ t('jobs_empty_title') }}</h2>
+      <p>{{ t('jobs_empty_text') }}</p>
+      <div class="row">
+        <form method="post" action="/run/search"><button class="btn btn-primary"><svg class="icon"><use href="#i-search"/></svg>{{ t('run_search') }}</button></form>
+        {% if not profile.search_keywords %}<a class="btn" href="/profile">{{ t('setup_cv') }}</a>{% endif %}
+      </div>
+    {% else %}
+      <p>{{ t('jobs_empty_tab') }}</p>
+    {% endif %}
+  </div>
+{% else %}
+<div data-filter-scope>
+  <div class="toolbar">
+    <div class="row" role="group" aria-label="{{ t('filter_where') }}">
+      <button type="button" class="chip" data-where="all" aria-pressed="true">{{ t('all') }}</button>
+      <button type="button" class="chip" data-where="remote" aria-pressed="false">Remote</button>
+      <button type="button" class="chip" data-where="hu" aria-pressed="false">{{ t('hungary') }}</button>
     </div>
-    {% if j.score is not none %}<span class="score {% if j.score >= 75 %}hi{% elif j.score >= 55 %}mid{% else %}lo{% endif %}">{{ j.score }}</span>{% endif %}
-  </header>
-  {% if j.score_reason %}<p class="small">{{ j.score_reason }}</p>{% endif %}
-  <details><summary class="small">{{ t('open_posting') }}</summary><pre class="desc">{{ j.description[:5000] }}</pre></details>
-  <footer class="row">
-    {% if j.status in ['suggested', 'low', 'new'] %}
-      <form method="post" action="/jobs/{{ j.id }}/prepare"><button class="small-btn">{{ t('prepare') }}</button></form>
-      <form method="post" action="/jobs/{{ j.id }}/dismiss"><button class="small-btn secondary outline">{{ t('dismiss') }}</button></form>
-    {% else %}<span class="pill">{{ j.status }}</span>{% endif %}
-    {% if j.url %}<a href="{{ j.url }}" target="_blank" rel="noopener">{{ t('open_posting') }} ↗</a>{% endif %}
-  </footer>
-</article>
-{% endfor %}
+    <label class="visually-hidden" for="job-search">{{ t('search_jobs') }}</label>
+    <input type="search" id="job-search" placeholder="{{ t('search_jobs') }}" style="margin-left:auto">
+  </div>
+
+  <ul class="job-list">
+  {% for j in jobs %}
+    {% set where = 'hu' if j.language == 'hu' else ('remote' if j.is_remote else 'other') %}
+    <li class="job" data-filter-item data-where="{{ where }}" data-text="{{ (j.title ~ ' ' ~ j.company ~ ' ' ~ j.location) | lower }}">
+      {% if j.score is not none %}
+        <div class="score {% if j.score >= 75 %}hi{% elif j.score >= 55 %}mid{% else %}lo{% endif %}"
+             title="{{ t('score') }}: {{ j.score }}/100"><span>{{ j.score }}</span></div>
+      {% else %}
+        <div class="score" title="{{ t('not_scored') }}">–</div>
+      {% endif %}
+      <div>
+        <h3>{% if j.url %}<a href="{{ j.url }}" target="_blank" rel="noopener">{{ j.title }}</a>{% else %}{{ j.title }}{% endif %}</h3>
+        <p class="company">{{ j.company }}{% if j.location %}, {{ j.location }}{% endif %}</p>
+        {% if j.score_reason %}<p class="reason">{{ j.score_reason }}</p>{% endif %}
+        <div class="tags">
+          {% if j.is_remote %}<span class="tag tag-remote">Remote</span>{% endif %}
+          {% if j.language == 'hu' %}<span class="tag tag-hu">{{ t('hungary') }}</span>{% endif %}
+          {% if j.salary_text %}<span class="tag">{{ j.salary_text }}</span>{% endif %}
+          {% if j.apply_email %}<span class="tag"><svg class="icon" style="width:13px;height:13px"><use href="#i-mail"/></svg>{{ t('email_apply') }}</span>{% endif %}
+          <span class="tag">{{ j.source }}</span>
+          {% if j.posted_at %}<span class="tag">{{ j.posted_at | localdate }}</span>{% endif %}
+        </div>
+        <details class="more"><summary>{{ t('full_posting') }}</summary><div class="desc">{{ j.description[:6000] }}</div></details>
+      </div>
+      <div class="job-actions">
+        {% if j.status in ['suggested', 'low', 'new'] %}
+          <form method="post" action="/jobs/{{ j.id }}/prepare">
+            <button class="btn btn-primary btn-block">{{ t('prepare') }}</button></form>
+          <form method="post" action="/jobs/{{ j.id }}/dismiss">
+            <button class="btn btn-ghost btn-block">{{ t('dismiss') }}</button></form>
+        {% elif j.status == 'drafted' %}
+          <a class="btn btn-block" href="/drafts">{{ t('open_draft') }}</a>
+        {% else %}
+          <span class="muted small">{{ t('job_st_' ~ j.status) }}</span>
+        {% endif %}
+      </div>
+    </li>
+  {% endfor %}
+  </ul>
+</div>
+{% endif %}
 {% endblock %}
