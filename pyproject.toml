@@ -1,0 +1,10 @@
+[project]
+name = "junior-wingman"
+version = "0.1.0"
+description = "Self-hosted job search assistant: finds jobs, drafts applications, tracks replies"
+license = "MIT"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
