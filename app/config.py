@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     auto_prepare_drafts: bool = True
     max_drafts_per_run: int = 5
     email_lookback_days: int = 30
+    linkedin_sync_days: int = 7
 
     @property
     def db_url(self) -> str:

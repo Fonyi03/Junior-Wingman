@@ -15,6 +15,11 @@
       <input type="hidden" name="kind" value="profiles">
       <label>{{ t('profiles_upload') }} <input type="file" name="file" accept=".pdf,.docx,.txt" required></label>
       <p class="small muted">{{ t('profiles_hint') }}</p>
+      {% if profile.linkedin_text %}
+        <p class="small">✅ {{ t('li_synced') }} ({{ profile.linkedin_text|length }} chars) · <a href="/settings#linkedin">{{ t('settings') }}</a></p>
+      {% else %}
+        <p class="small"><a href="/settings#linkedin">{{ t('li_connect_hint') }} →</a></p>
+      {% endif %}
       <button class="small-btn">Upload</button>
     </form>
   </article>
@@ -42,5 +47,5 @@
     <textarea name="profiles_text" rows="10">{{ profile.profiles_text }}</textarea></details>
   <button>{{ t('save') }}</button>
 </form>
-<form method="post" action="/profile/analyze"><button class="secondary outline" {% if not profile.cv_text %}disabled{% endif %}>{{ t('analyze') }}</button></form>
+<form method="post" action="/profile/analyze"><button class="secondary outline" {% if not profile.cv_text and not profile.linkedin_text %}disabled{% endif %}>{{ t('analyze') }}</button></form>
 {% endblock %}

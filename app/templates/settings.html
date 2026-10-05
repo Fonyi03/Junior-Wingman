@@ -12,6 +12,39 @@
     <a href="/gmail/connect" role="button">{{ t('connect') }}</a>
   {% endif %}
 </article>
+<article id="linkedin">
+  <h4>{{ t('li_title') }}</h4>
+  {% if li.connected %}
+    {% if li.error == 'token_expired' %}
+      <p class="flash flash-error">⚠️ {{ t('li_expired') }}</p>
+    {% elif li.error %}
+      <p class="flash flash-error">⚠️ {{ li.error }}</p>
+    {% else %}
+      <p>✅ {{ t('connected') }} · {{ t('li_token_age') }}: {{ li.token_age_days }} {{ t('days') }}</p>
+    {% endif %}
+    <p class="small muted">{{ t('li_last_sync') }}: {{ li.last_sync or t('never') }}</p>
+    <div class="row">
+      <form method="post" action="/linkedin/sync"><button class="small-btn">{{ t('li_sync_now') }}</button></form>
+      <form method="post" action="/linkedin/disconnect"><button class="small-btn secondary outline">{{ t('disconnect') }}</button></form>
+    </div>
+  {% endif %}
+  <form method="post" action="/linkedin/token">
+    <label>{{ t('li_token') }}
+      <input type="password" name="token" autocomplete="off" required placeholder="AQV…"></label>
+    <button class="small-btn">{{ t('save') }} &amp; {{ t('li_sync_now') }}</button>
+  </form>
+  <details>
+    <summary class="small">{{ t('li_howto') }}</summary>
+    <ol class="small">
+      <li>{{ t('li_step1') }} <a href="https://www.linkedin.com/developers/apps/new" target="_blank" rel="noopener">linkedin.com/developers</a>
+        – {{ t('li_step1b') }} <a href="https://www.linkedin.com/company/member-data-portability-member-default-company" target="_blank" rel="noopener">Member Data Portability (Member) Default Company</a></li>
+      <li>{{ t('li_step2') }}</li>
+      <li>{{ t('li_step3') }} <a href="https://www.linkedin.com/developers/tools/oauth" target="_blank" rel="noopener">OAuth Token Generator</a> → <code>r_dma_portability_self_serve</code></li>
+      <li>{{ t('li_step4') }}</li>
+    </ol>
+    <p class="small muted">{{ t('li_note') }}</p>
+  </details>
+</article>
 <article>
   <h4>{{ t('ai') }}</h4>
   <p>{{ '✅' if llm[0] else '⚠️' }} {{ llm[1] }}</p>

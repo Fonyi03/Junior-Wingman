@@ -21,7 +21,7 @@ from .db import get_profile, get_session, init_db, kv_get
 from .i18n import APP_STATUSES, translator
 from .llm import LLMError, llm_status
 from .models import Application, EmailEvent, Job, utcnow
-from .services import ai, gmail, pipeline
+from .services import ai, gmail, linkedin, pipeline
 from .services.documents import extract_text
 from .sources import ALL_SOURCES
 
@@ -39,6 +39,8 @@ async def lifespan(_: FastAPI):
                       next_run_time=utcnow() + timedelta(minutes=2), id="search", max_instances=1, coalesce=True)
     scheduler.add_job(pipeline.run_email_sync, "interval", minutes=settings.email_sync_minutes,
                       next_run_time=utcnow() + timedelta(minutes=5), id="email", max_instances=1, coalesce=True)
+    scheduler.add_job(linkedin.run_sync, "interval", days=settings.linkedin_sync_days,
+                      next_run_time=utcnow() + timedelta(minutes=1), id="linkedin", max_instances=1, coalesce=True)
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)
@@ -127,7 +129,7 @@ def dashboard(request: Request, s: Session = Depends(get_session)):
                     .order_by(Application.updated_at.desc()).limit(8)).all()
     return render(request, s, "dashboard.html", counts=counts, suggested=suggested, recent=recent,
                   last_search=kv_get(s, "last_search"), last_sync=kv_get(s, "last_email_sync"),
-                  llm=llm_status(), gmail_ok=gmail.connected())
+                  llm=llm_status(), gmail_ok=gmail.connected(), li=linkedin.status(s))
 
 
 @app.post("/run/search")
@@ -397,7 +399,42 @@ def settings_page(request: Request, s: Session = Depends(get_session)):
             gmail_email = f"error: {e}"
     return render(request, s, "settings.html", llm=llm_status(), gmail_configured=gmail.configured(),
                   gmail_email=gmail_email, sources=[(x.name, x.enabled()) for x in ALL_SOURCES],
-                  cfg=settings)
+                  cfg=settings, li=linkedin.status(s))
+
+
+# ---------------------------------------------------------------- linkedin
+
+@app.post("/linkedin/token")
+def linkedin_token(request: Request, token: str = Form(...), s: Session = Depends(get_session)):
+    linkedin.set_token(s, token)
+    return linkedin_sync(request, s)
+
+
+@app.post("/linkedin/sync")
+def linkedin_sync(request: Request, s: Session = Depends(get_session)):
+    stats = linkedin.run_sync()
+    if stats["errors"]:
+        flash(request, "; ".join(stats["errors"]), "error")
+        return back("/settings")
+    flash(request, f"LinkedIn: {stats['records']} records / {stats['domains']} sections, "
+                   f"+{stats['applications_added']} applications")
+    s.expire_all()
+    p = get_profile(s)
+    if p.linkedin_text and not p.search_keywords:
+        try:
+            ins = ai.analyze_profile(p)
+            p.search_keywords = ", ".join(ins.search_keywords)
+            s.add(p)
+            s.commit()
+        except LLMError as e:
+            flash(request, str(e), "error")
+    return back("/settings")
+
+
+@app.post("/linkedin/disconnect")
+def linkedin_disconnect(s: Session = Depends(get_session)):
+    linkedin.set_token(s, "")
+    return back("/settings")
 
 
 @app.get("/gmail/connect")

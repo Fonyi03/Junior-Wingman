@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>{{ t('dashboard') }}</h2>
+{% if li.error == 'token_expired' %}
+  <article class="flash flash-error">⚠️ {{ t('li_expired') }} <a href="/settings#linkedin">{{ t('settings') }} →</a></article>
+{% endif %}
 <div class="stats">
   <a href="/jobs" class="stat"><span>{{ suggested }}</span>{{ t('jobs') }}</a>
   <a href="/drafts" class="stat"><span>{{ drafts_count }}</span>{{ t('drafts') }}</a>

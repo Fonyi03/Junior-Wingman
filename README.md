@@ -58,6 +58,23 @@ reboot. You never need to start or stop it by hand.
 Scopes: `gmail.readonly` (status tracking) and `gmail.send` (sending approved applications).
 The token stays in your local SQLite database (`./data`).
 
+## LinkedIn profile sync (official API, no export needed)
+
+EEA/Swiss members can connect LinkedIn through the official
+[Member Data Portability (Member) API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/)
+(EU Digital Markets Act). The app pulls your profile, positions, education, skills,
+certifications, languages, projects and job-seeker preferences **weekly**, and
+imports the applications you made on LinkedIn (e.g. Easy Apply) into the tracker.
+
+1. Create an app at https://www.linkedin.com/developers/apps/new. As the company page you **must** select
+   *Member Data Portability (Member) Default Company*.
+2. On the app's *Products* tab, request **Member Data Portability API (Member)**.
+3. In the [OAuth Token Generator](https://www.linkedin.com/developers/tools/oauth), select the app, choose the scope
+   `r_dma_portability_self_serve`, and allow access.
+4. Paste the token on **Settings → LinkedIn**. When it expires the dashboard tells you; generate a new one the same way.
+
+Glassdoor, Indeed and Profession.hu offer no candidate-profile API. For them, upload a PDF/text export once (it is stored).
+
 ## Job sources
 
 | Source | Key | Coverage |
@@ -114,5 +131,6 @@ Stack: FastAPI · Jinja2 + Pico.css · SQLModel/SQLite · APScheduler · Anthrop
 3. Futtasd: `docker compose up -d --build`
 4. Nyisd meg a http://localhost:8000 címet, és a **Profil** oldalon töltsd fel az önéletrajzodat. A LinkedIn-profilodat is feltöltheted: Profil → Továbbiak → Mentés PDF-ként.
 5. A **Beállítások** oldalon csatlakoztasd a Gmailt (lásd fent a *Gmail setup* részt).
+6. Ugyanott a LinkedInt is bekötheted a hivatalos API-n keresztül, export nélkül (lásd a *LinkedIn profile sync* részt). Ez EU-s felhasználóknak érhető el. A profilod ezután hetente frissül, és a LinkedInen beadott jelentkezéseid is bekerülnek a trackerbe.
 
 Az app 6 óránként keres, a talált állásokat pontozza, és megírja a motivációs leveleket: magyar állásnál magyarul, remote-nál angolul. A levelek a **Jóváhagyásra vár** oldalra kerülnek. Semmit nem küld el a jóváhagyásod nélkül. A **Jelentkezéseim** oldalon látod a jelentkezések státuszát, a kapcsolattartó telefonszámát és a megadott bérigényt. Ezeket a Gmail-szinkron 30 percenként frissíti.

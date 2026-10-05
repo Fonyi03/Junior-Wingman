@@ -18,6 +18,8 @@ class Profile(SQLModel, table=True):
     cv_filename: str = ""
     # Text exported from LinkedIn ("Save to PDF"), Glassdoor, etc.
     profiles_text: str = ""
+    # Synced automatically via the LinkedIn Member Data Portability API
+    linkedin_text: str = ""
     # Comma separated; generated from the CV, editable
     search_keywords: str = ""
     want_remote: bool = True

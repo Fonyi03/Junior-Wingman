@@ -41,7 +41,8 @@ def _profile_block(p: Profile) -> str:
     return (
         f"Name: {p.full_name}\nLocation: {p.location}\n\n"
         f"CV:\n{p.cv_text[:MAX_DOC_CHARS]}\n\n"
-        f"Other profiles (LinkedIn, Glassdoor, ...):\n{p.profiles_text[:MAX_DOC_CHARS]}"
+        f"LinkedIn profile (synced):\n{p.linkedin_text[:MAX_DOC_CHARS]}\n\n"
+        f"Other profiles (uploaded exports):\n{p.profiles_text[:MAX_DOC_CHARS]}"
     )
 
 
